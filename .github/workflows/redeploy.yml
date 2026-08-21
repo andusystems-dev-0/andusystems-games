@@ -1,5 +1,5 @@
-# games-redeploy — DESTROY + recreate the games cluster, then converge. Durability is in R2:
-# ArgoCD reconciles apps/ and CNPG restores games-db/games-db-uat from R2 backups. DESTROY-gated.
+# games-redeploy — DESTROY + recreate the games cluster, then converge + re-register. Durability is
+# in R2: ArgoCD reconciles apps/ and CNPG restores games-db/games-db-uat from R2 backups. DESTROY-gated.
 name: games-redeploy
 
 on:
@@ -23,6 +23,8 @@ jobs:
     runs-on: [self-hosted, linux, andusystems-mgmt]
     timeout-minutes: 60
     env:
+      SSH_KEY_PATH: /root/.ssh/andusystems-proxmox
+      AWS_REGION: us-east-1
       TF_VAR_proxmox_endpoint: ${{ secrets.PROXMOX_ENDPOINT }}
       TF_VAR_proxmox_api_token: ${{ secrets.PROXMOX_API_TOKEN }}
       TF_VAR_ssh_public_keys: '["${{ secrets.SSH_PUBKEY }}"]'
@@ -31,22 +33,70 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Terraform destroy + recreate
+      - name: Setup tools (OpenTofu + Ansible + kubectl + aws + jq)
+        run: |
+          set -euo pipefail
+          curl -fsSL https://get.opentofu.org/install-opentofu.sh -o /tmp/install-tofu.sh
+          chmod +x /tmp/install-tofu.sh && /tmp/install-tofu.sh --install-method standalone
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends jq openssh-client python3 python3-pip unzip curl
+          python3 -m pip install --quiet --break-system-packages 'ansible-core>=2.16,<2.22'
+          if ! command -v kubectl >/dev/null; then
+            curl -fsSLo /tmp/kubectl "https://dl.k8s.io/release/$(curl -fsSL https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+            sudo install -m 0755 /tmp/kubectl /usr/local/bin/kubectl
+          fi
+          if ! command -v aws >/dev/null; then
+            curl -fsSL https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip -o /tmp/awscli.zip
+            unzip -q /tmp/awscli.zip -d /tmp && sudo /tmp/aws/install --update
+          fi
+
+      - name: Provision Proxmox SSH key
+        env:
+          KEY_BODY: ${{ secrets.PROXMOX_SSH_KEY }}
+          PUB_BODY: ${{ secrets.SSH_PUBKEY }}
+        run: |
+          set -euo pipefail
+          mkdir -p /root/.ssh
+          printf '%s\n' "$KEY_BODY" > "$SSH_KEY_PATH"; chmod 600 "$SSH_KEY_PATH"
+          ssh-keygen -y -f "$SSH_KEY_PATH" >/dev/null || { echo "::error::PROXMOX_SSH_KEY invalid"; exit 1; }
+          printf '%s\n' "$PUB_BODY" > "${SSH_KEY_PATH}.pub"
+
+      - name: Tofu destroy + recreate
         working-directory: terraform
         run: |
-          terraform init -input=false
-          terraform destroy -auto-approve -input=false
-          terraform apply -auto-approve -input=false
+          tofu init -input=false
+          tofu destroy -auto-approve -input=false
+          tofu apply -auto-approve -input=false
 
       - name: Ansible converge (k3s HA + MetalLB)
         working-directory: ansible
-        run: |
-          install -m 600 /dev/stdin ~/.ssh/andusystems-proxmox <<< "${{ secrets.PROXMOX_SSH_KEY }}"
-          ansible-playbook -i inventory/games/hosts.yml k3s.yml
-
-      - name: Re-register spoke (ArgoCD reconciles apps/; CNPG restores from R2)
         env:
-          KUBECONFIG_MGMT: ${{ secrets.MGMT_KUBECONFIG }}
+          ANSIBLE_HOST_KEY_CHECKING: "False"
+        run: ansible-playbook -i inventory/games/hosts.yml k3s.yml
+
+      - name: Fetch games kubeconfig
         run: |
-          echo "$KUBECONFIG_MGMT" > /tmp/mgmt.kubeconfig
-          KUBECONFIG=/tmp/mgmt.kubeconfig kubectl apply -f apps/argocd/
+          set -euo pipefail
+          ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i "$SSH_KEY_PATH" \
+            ubuntu@10.238.70.41 'sudo cat /etc/rancher/k3s/k3s.yaml' > /tmp/games.kubeconfig
+          sed -i 's#127.0.0.1#10.238.70.41#' /tmp/games.kubeconfig
+
+      - name: Re-register games cluster + apps in ArgoCD (mgmt hub)
+        env:
+          MGMT_KUBECONFIG: ${{ secrets.MGMT_KUBECONFIG }}
+        run: |
+          set -euo pipefail
+          echo "$MGMT_KUBECONFIG" > /tmp/mgmt.kubeconfig
+          export KUBECONFIG=/tmp/mgmt.kubeconfig
+          ca=$(grep 'certificate-authority-data:' /tmp/games.kubeconfig | awk '{print $2}')
+          cert=$(grep 'client-certificate-data:' /tmp/games.kubeconfig | awk '{print $2}')
+          key=$(grep 'client-key-data:' /tmp/games.kubeconfig | awk '{print $2}')
+          config="{\"tlsClientConfig\":{\"insecure\":false,\"caData\":\"$ca\",\"certData\":\"$cert\",\"keyData\":\"$key\"}}"
+          kubectl -n argocd create secret generic cluster-games \
+            --from-literal=name=games \
+            --from-literal=server=https://10.238.70.41:6443 \
+            --from-literal=config="$config" \
+            --dry-run=client -o yaml \
+            | kubectl label --local -f - argocd.argoproj.io/secret-type=cluster -o yaml \
+            | kubectl apply -f -
+          kubectl apply -f apps/argocd/

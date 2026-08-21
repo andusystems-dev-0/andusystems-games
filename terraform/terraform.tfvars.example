@@ -1,13 +1,15 @@
-# Copy to terraform.tfvars (git-ignored) OR supply via TF_VAR_* env from GH secrets on the runner.
-# PLACEHOLDERS — fill real values later (docs/runbook.md secret list).
+# Real values come from TF_VAR_* env (GH secrets) on the runner — you normally don't need a tfvars.
+# Copy to terraform.tfvars (git-ignored) only for local plans. PLACEHOLDERS below.
 
-proxmox_endpoint  = "https://REPLACE_ME-proxmox:8006/"
-proxmox_api_token = "REPLACE_ME_TOKEN_ID=REPLACE_ME_SECRET"
-proxmox_node      = "worker3"        # CONFIRM which host runs the games VMs
-template_vm_id    = 9000             # CONFIRM the Ubuntu 24.04 cloud-init template VMID
-
-# VLAN 70 defaults are already correct (verified free). Override only if needed.
-# network_vlan_id = 70
-# network_gateway = "10.238.70.1"
+proxmox_endpoint  = "https://10.238.0.101:8006/"
+proxmox_api_token = "terraform@pam!terraform=REPLACE_ME_UUID"
 
 ssh_public_keys = ["ssh-ed25519 AAAA_REPLACE_ME games-cluster"]
+
+# VLAN 70 + image defaults are already correct. Override node placement only if worker0/2/3
+# lack capacity — e.g.:
+# nodes = {
+#   games-1 = { proxmox_host = "worker0", ip = "10.238.70.41", vm_id = 7041, cpu_cores = 2, memory_mb = 6144, disk_gb = 60 }
+#   games-2 = { proxmox_host = "worker2", ip = "10.238.70.42", vm_id = 7042, cpu_cores = 2, memory_mb = 6144, disk_gb = 60 }
+#   games-3 = { proxmox_host = "worker3", ip = "10.238.70.43", vm_id = 7043, cpu_cores = 2, memory_mb = 6144, disk_gb = 60 }
+# }
