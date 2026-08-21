@@ -76,7 +76,7 @@ Build the shared wrapper + reusable workflow in **this** (public) repo so public
 - [ ] `mobile/shell` — one generic Capacitor app; `webDir` = the game's built bundle (assets bundled **offline**, not a remote URL); reads `game.json` for id/name/icons/splash/orientation.
 - [ ] `.github/workflows/mobile-package.yml` (reusable `workflow_call`): input = {slug, web-artifact, track}; regenerates the Android/iOS projects, injects metadata, builds signed `.aab`/`.ipa`.
 - [ ] Native save routes through the SDK via Capacitor Preferences/Filesystem (source of truth) — keeps it a real offline game and clears App Store 4.2 "minimum functionality" (see `docs/mobile-release.md`).
-- [ ] Apple Developer + Google Play accounts (Alex); service-account JSON + Apple API key as sealed/GH secrets.
+- [ ] Apple Developer + Google Play accounts (the operator); service-account JSON + Apple API key as sealed/GH secrets.
 - [ ] **Fastlane** lanes: `beta` (TestFlight + Play internal = UAT), `release` (App Store + Play production = prod). Signing: Play App Signing; iOS match/manual. macOS runner path resolved (CONFIRM).
 - [ ] Store metadata/screenshots pipeline (optionally sourced from SpriteForge).
 

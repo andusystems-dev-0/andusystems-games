@@ -14,7 +14,7 @@ crosses between them.
 | Stripe | **test** keys/prices; webhooks via `stripe listen` | **live** keys/prices; webhook direct (public) |
 | Store track | TestFlight + Play **internal testing** | App Store + Play **production** |
 | R2 prefix | `uat/<slug>/` | `prod/<slug>/` |
-| Reach | Alex only (Pangolin allow-list) | anyone |
+| Reach | the operator only (Pangolin allow-list) | anyone |
 
 ## Why isolated
 UAT is where a build is exercised before public release — its saves, purchases (Stripe test), and

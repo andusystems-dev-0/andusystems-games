@@ -44,7 +44,7 @@ Same `.aab`/`.ipa` promoted beta→release; no rebuild (D-012).
 - **macOS runner** for iOS builds: the estate has none today (CONFIRM) — options: a Mac mini on the
   LAN as a self-hosted runner, or a hosted macOS runner. Blocks **iOS only**; Android ships without it.
 
-## Accounts / prerequisites (Alex)
+## Accounts / prerequisites (the operator)
 - **Apple Developer Program** ($99/yr) + App Store Connect app records per game.
 - **Google Play Developer** ($25 one-time) + a service account JSON for API upload.
 - Bundle ids `com.andusystems.games.<slug>` reserved on both stores.

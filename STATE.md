@@ -66,7 +66,7 @@ plus the four sibling repos). Nothing is deployed. No cluster exists yet. The ne
 - [x] ~~CONFIRM the games VLAN~~ — **VLAN 70** (`10.238.70.0/24`), nodes `.41-.43`, MetalLB `.50-.69` — verified free 2026-08-21.
 - [~] **GitHub secrets** on `andusystems-dev-0/andusystems-games`: PROXMOX_ENDPOINT, PROXMOX_SSH_KEY, SSH_PUBKEY, AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, MGMT_KUBECONFIG **set 2026-08-21**. Remaining: **PROXMOX_API_TOKEN** (from Proxmox UI / your vault — not on disk) and **GH_ONBOARD_TOKEN** (PAT, new-game.yml only). Then confirm `proxmox_node`/`template_vm_id` defaults (`worker3`/`9000`), register a repo-scoped self-hosted runner, and run `deploy.yml`.
 - [ ] **CONFIRM a macOS build path** for iOS (no macOS in the estate today) — Mac mini vs hosted macOS runner. Blocks iOS store release only.
-- [ ] **Apple Developer Program** ($99/yr) + **Google Play Developer** ($25) accounts — Alex sets up; store submission blocked until then.
+- [ ] **Apple Developer Program** ($99/yr) + **Google Play Developer** ($25) accounts — the operator sets up; store submission blocked until then.
 - [x] ~~Decide D-010~~ — **SDK repo + package are public** (2026-08-21).
 - [ ] Pangolin: create the UAT + SpriteForge **Sites/resources** (manual in the Pangolin UI, like pterodactyl) and capture Newt IDs/secrets as sealed secrets.
 - [ ] **Stripe:** create the games Stripe account + products/prices (test + live); decide what's sold (digital unlocks/cosmetics/remove-ads vs subscriptions). UAT = test keys, prod = live keys.

@@ -13,7 +13,7 @@ each choice was made.
         ▼                                                                           ▼
   App/Play stores ← thin Capacitor shell (same web bundle, offline)         ┌──────────────┐
                                                                             │ games k3s    │
-  Alex (private) ── Pangolin/Newt ──► uat.<slug>… / uat-api… / spriteforge… │  VLAN 70     │
+  the operator (private) ── Pangolin/Newt ──► uat.<slug>… / uat-api… / spriteforge… │  VLAN 70     │
                                                                             │  (spoke)     │
                                                                             └──────┬───────┘
   mgmt cluster (VLAN 10): ArgoCD hub  ─── reconciles apps/ ───►                    │
@@ -34,7 +34,7 @@ each choice was made.
   `terraform/` (`bpg/proxmox`) + `ansible/` (k3s), modeled on `andusystems-platform`.
 - **Spoke, not a hub.** The cluster runs **no ArgoCD of its own**. The **mgmt cluster's ArgoCD**
   registers it as a managed cluster and reconciles `apps/*` from this repo. This is the
-  hub-and-spoke Alex asked for: manage + monitor games from the platform cluster.
+  hub-and-spoke the operator asked for: manage + monitor games from the platform cluster.
 - **Namespaces:** `save-api` (prod API + `games-db`), `save-api-uat` (UAT API + `games-db-uat`),
   `web-uat` (shared UAT static host), `edge` (cloudflared Tunnel + Newt connector), `spriteforge`,
   `monitoring` (grafana-agent), `sealed-secrets`, `cert-manager`, `cnpg-system`.
@@ -58,7 +58,7 @@ See `data-model.md`, `api-spec.md`, `save-model.md`, `identity.md`.
 | Plane | Who | How | What |
 |---|---|---|---|
 | **Public / prod** | anyone | **Cloudflare** — R2/Pages for bundles, **Cloudflare Tunnel** for the API | `<slug>.games…`, `api.games…` |
-| **Private / UAT + tools** | Alex (IP-allow-listed) | **Pangolin** resources via a co-located **Newt** connector | `uat.<slug>.games…`, `uat-api.games…`, `spriteforge…` |
+| **Private / UAT + tools** | the operator (IP-allow-listed) | **Pangolin** resources via a co-located **Newt** connector | `uat.<slug>.games…`, `uat-api.games…`, `spriteforge…` |
 
 The Tunnel and Newt both dial **out** — no inbound ports, and the MetalLB VIP is never exposed
 publicly (this sidesteps the devbox-can't-reach-VIP issue noted estate-wide). Internal routing is

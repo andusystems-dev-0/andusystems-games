@@ -33,7 +33,7 @@ See `identity.md`.
 ### D-004 — Save model = all three shapes, per-game configured — accepted
 Per-game `save_mode`: `lww` (single blob, last-write-wins — the default), `lww_history` (LWW + keep
 N revisions), `slots` (multiple named saves). Configured in the games registry.
-**Why:** Alex confirmed most games are LWW, some want light history, some want named slots. One
+**Why:** the operator confirmed most games are LWW, some want light history, some want named slots. One
 schema + one API serve all three via config; no per-game backend. See `save-model.md`.
 
 ### D-005 — Datastore = in-cluster CloudNativePG Postgres — accepted
@@ -51,7 +51,7 @@ game ever needs bespoke server logic, extend the shared API — don't fork a per
 ### D-007 — Every game has UAT (private) + prod (public) — accepted
 UAT is a Pangolin-gated, IP-allow-listed environment; prod is public on Cloudflare. Fully isolated:
 separate API deploy, DB, signing key, R2 prefix, and store track.
-**Why:** Alex wants to test privately before public release, on both web and store builds.
+**Why:** the operator wants to test privately before public release, on both web and store builds.
 See `environments.md`.
 
 ### D-008 — Games ship to the App Store + Play Store — accepted
@@ -61,13 +61,13 @@ Released via Fastlane: TestFlight + Play-internal = UAT; production tracks = pro
 ### D-009 — SpriteForge is a private cluster app via Pangolin — accepted
 AI 2D asset+animation studio; deploys to the games cluster, reached only through a Pangolin private
 resource; heavy inference via a cloud gateway (no GPU on-prem).
-**Why:** Alex wants a fast private asset pipeline on their infra without running GPUs. See
+**Why:** the operator wants a fast private asset pipeline on their infra without running GPUs. See
 `andusystems-spriteforge/`.
 
 ### D-010 — SDK repo + package are public — accepted (2026-08-21)
 The **SDK repo and npm package are public** (thin client, no secrets); the *server* and the
 *template* stay private. Public game repos then `npm install @andusystems/games-sdk` with **no auth
-tokens** — no CI friction, open-source-friendly. Supersedes the earlier "private" request, at Alex's
+tokens** — no CI friction, open-source-friendly. Supersedes the earlier "private" request, at the operator's
 direction ("make it public").
 
 ### D-011 — Mobile app = thin offline wrapper of the same web bundle — accepted
@@ -75,7 +75,7 @@ The game is one **web bundle**. The store apps are a **generic Capacitor shell**
 exact web build **offline** and renders it — no per-game native code, no separate development.
 The shell + a reusable packaging workflow live in the **public** `andusystems-games` repo so public
 game repos can call them without private-repo access.
-**Why:** Alex wants store apps that are "just a rendered version of the website." Bundling assets
+**Why:** the operator wants store apps that are "just a rendered version of the website." Bundling assets
 **offline** (not a remote URL) + native save via Capacitor keeps it a real, self-contained app,
 which clears **App Store Guideline 4.2** (minimum functionality / "not just a website"). A remote-URL
 webview would risk rejection and require connectivity. See `mobile-release.md`.
@@ -106,7 +106,7 @@ Billing require IAP for **in-app** digital goods, so a Stripe "Buy" button insid
 rejection. Web-first + entitlement sync sidesteps that with zero store fees and no rejection risk;
 external-link entitlements (US/EU) or native IAP can be added later without schema changes.
 **Alternatives deferred:** external-purchase-link entitlement (B), native IAP hybrid (C) — see
-`payments.md`. **Rejected:** sharing Hireship's Stripe account (Alex: separate resources).
+`payments.md`. **Rejected:** sharing Hireship's Stripe account (the operator: separate resources).
 
 ### D-016 — Entitlements attach to accounts, so checkout requires an account — accepted
 Buying links (or creates) an email account; entitlements key on `account_id` and sync across

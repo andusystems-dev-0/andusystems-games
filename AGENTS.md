@@ -1,7 +1,7 @@
 # AGENTS.md — andusystems-games
 
 GitOps + IaC for the **games cluster** and the design hub for the whole games estate. You are
-an automation agent on Alex's **devbox** (network access to Proxmox, both k3s clusters, MinIO, Cloudflare,
+an automation agent on the operator's **devbox** (network access to Proxmox, both k3s clusters, MinIO, Cloudflare,
 AWS, Pangolin). Read `STATE.md` then `ROADMAP.md` before doing anything.
 
 ## What this is

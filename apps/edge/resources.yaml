@@ -32,7 +32,7 @@ spec:
             capabilities: { drop: ["ALL"] }
 ---
 # Newt connector for the Pangolin private resources (uat.*, uat-api, spriteforge). Placeholder creds;
-# Alex creates the Pangolin Site after the VLAN exists and fills NEWT_ID/NEWT_SECRET.
+# the operator creates the Pangolin Site after the VLAN exists and fills NEWT_ID/NEWT_SECRET.
 apiVersion: v1
 kind: Secret
 metadata:
