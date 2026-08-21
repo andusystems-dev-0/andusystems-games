@@ -1,0 +1,6 @@
+# Edge: Cloudflare Tunnel (public prod API) + Newt connector (private UAT/spriteforge via Pangolin).
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: edge
+resources:
+  - resources.yaml

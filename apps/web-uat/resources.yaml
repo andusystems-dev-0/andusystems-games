@@ -1,0 +1,41 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: web-uat
+  labels: { app: web-uat }
+spec:
+  replicas: 1
+  selector: { matchLabels: { app: web-uat } }
+  template:
+    metadata: { labels: { app: web-uat } }
+    spec:
+      securityContext: { runAsNonRoot: true, runAsUser: 101, seccompProfile: { type: RuntimeDefault } }
+      containers:
+        - name: nginx
+          image: nginxinc/nginx-unprivileged:stable
+          ports: [ { containerPort: 8080 } ]
+          # TODO: config proxies uat.<slug>.games… → R2 uat/<slug>/ (or an init-sync sidecar).
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: { drop: ["ALL"] }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: web-uat
+spec:
+  selector: { app: web-uat }
+  ports: [ { port: 80, targetPort: 8080 } ]
+---
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: web-uat
+spec:
+  entryPoints: [web]
+  routes:
+    - match: HostRegexp(`uat.{slug:[a-z0-9-]+}.games.andusystems.com`)
+      kind: Rule
+      services:
+        - { name: web-uat, port: 80 }

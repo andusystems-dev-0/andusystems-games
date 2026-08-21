@@ -1,0 +1,13 @@
+# Copy to terraform.tfvars (git-ignored) OR supply via TF_VAR_* env from GH secrets on the runner.
+# PLACEHOLDERS — fill real values later (docs/runbook.md secret list).
+
+proxmox_endpoint  = "https://REPLACE_ME-proxmox:8006/"
+proxmox_api_token = "REPLACE_ME_TOKEN_ID=REPLACE_ME_SECRET"
+proxmox_node      = "worker3"        # CONFIRM which host runs the games VMs
+template_vm_id    = 9000             # CONFIRM the Ubuntu 24.04 cloud-init template VMID
+
+# VLAN 70 defaults are already correct (verified free). Override only if needed.
+# network_vlan_id = 70
+# network_gateway = "10.238.70.1"
+
+ssh_public_keys = ["ssh-ed25519 AAAA_REPLACE_ME games-cluster"]

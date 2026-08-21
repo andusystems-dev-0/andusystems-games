@@ -1,0 +1,18 @@
+# UAT save-api = the prod base, re-namespaced + re-pointed. Private (Pangolin), separate DB + keys +
+# Stripe test keys (patched via the secret at bootstrap). Same image, same registry.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: save-api-uat
+resources:
+  - ../save-api
+patches:
+  - target: { kind: Deployment, name: save-api }
+    patch: |
+      - op: replace
+        path: /spec/template/spec/containers/0/env/0/value
+        value: uat
+  - target: { kind: IngressRoute, name: save-api }
+    patch: |
+      - op: replace
+        path: /spec/routes/0/match
+        value: Host(`uat-api.games.andusystems.com`)

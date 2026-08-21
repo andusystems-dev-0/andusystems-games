@@ -1,0 +1,13 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: save-api
+resources:
+  - resources.yaml
+# Registry as GitOps: new-game.sh appends to games-registry.yaml → this ConfigMap → mounted + hot-reloaded.
+configMapGenerator:
+  - name: games-registry
+    files:
+      - games-registry.yaml
+      - products.yaml
+generatorOptions:
+  disableNameSuffixHash: true

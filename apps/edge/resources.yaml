@@ -1,0 +1,68 @@
+# Secrets are PLACEHOLDERS — filled after Cloudflare token + Pangolin Newt resource exist.
+apiVersion: v1
+kind: Secret
+metadata:
+  name: cloudflared-token
+type: Opaque
+stringData:
+  TUNNEL_TOKEN: "REPLACE_ME_CF_TUNNEL_TOKEN"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cloudflared
+  labels: { app: cloudflared }
+spec:
+  replicas: 2
+  selector: { matchLabels: { app: cloudflared } }
+  template:
+    metadata: { labels: { app: cloudflared } }
+    spec:
+      securityContext: { runAsNonRoot: true, runAsUser: 65532, seccompProfile: { type: RuntimeDefault } }
+      containers:
+        - name: cloudflared
+          image: cloudflare/cloudflared:latest
+          args: ["tunnel", "--no-autoupdate", "run"]
+          env:
+            - name: TUNNEL_TOKEN
+              valueFrom: { secretKeyRef: { name: cloudflared-token, key: TUNNEL_TOKEN } }
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: { drop: ["ALL"] }
+---
+# Newt connector for the Pangolin private resources (uat.*, uat-api, spriteforge). Placeholder creds;
+# Alex creates the Pangolin Site after the VLAN exists and fills NEWT_ID/NEWT_SECRET.
+apiVersion: v1
+kind: Secret
+metadata:
+  name: newt-creds
+type: Opaque
+stringData:
+  NEWT_ID: "REPLACE_ME_NEWT_ID"
+  NEWT_SECRET: "REPLACE_ME_NEWT_SECRET"
+  PANGOLIN_ENDPOINT: "https://REPLACE_ME-pangolin"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: newt
+  labels: { app: newt }
+spec:
+  replicas: 1
+  selector: { matchLabels: { app: newt } }
+  template:
+    metadata: { labels: { app: newt } }
+    spec:
+      securityContext: { runAsNonRoot: true, runAsUser: 65532, seccompProfile: { type: RuntimeDefault } }
+      containers:
+        - name: newt
+          image: fosrl/newt:latest
+          env:
+            - { name: PANGOLIN_ENDPOINT, valueFrom: { secretKeyRef: { name: newt-creds, key: PANGOLIN_ENDPOINT } } }
+            - { name: NEWT_ID, valueFrom: { secretKeyRef: { name: newt-creds, key: NEWT_ID } } }
+            - { name: NEWT_SECRET, valueFrom: { secretKeyRef: { name: newt-creds, key: NEWT_SECRET } } }
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: { drop: ["ALL"] }

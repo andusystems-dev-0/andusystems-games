@@ -1,0 +1,82 @@
+# Install a 3-node HA k3s control plane on the games VMs, then MetalLB + its pool.
+# Idempotent (creates: guards). Traefik ships with k3s; we only pin the LB VIP via MetalLB.
+- name: Install k3s HA control plane
+  hosts: k3s_servers
+  become: true
+  serial: 1
+  vars:
+    k3s_version: v1.30.5+k3s1
+  tasks:
+    - name: Determine the bootstrap (first) server
+      ansible.builtin.set_fact:
+        is_first: "{{ inventory_hostname == (groups['k3s_servers'] | first) }}"
+        first_host: "{{ groups['k3s_servers'] | first }}"
+
+    - name: Install k3s on the first server (cluster-init)
+      when: is_first
+      ansible.builtin.shell: |
+        curl -sfL https://get.k3s.io | INSTALL_K3S_VERSION={{ k3s_version }} \
+          sh -s - server --cluster-init --tls-san {{ ansible_host }} --disable servicelb
+      args:
+        creates: /etc/systemd/system/k3s.service
+
+    - name: Read node-token from the first server
+      when: is_first
+      ansible.builtin.slurp:
+        src: /var/lib/rancher/k3s/server/node-token
+      register: node_token_b64
+
+    - name: Publish token + bootstrap IP to all hosts
+      ansible.builtin.set_fact:
+        k3s_token: "{{ hostvars[first_host].node_token_b64.content | b64decode | trim }}"
+        first_ip: "{{ hostvars[first_host].ansible_host }}"
+
+    - name: Install k3s on the joining servers
+      when: not is_first
+      ansible.builtin.shell: |
+        curl -sfL https://get.k3s.io | INSTALL_K3S_VERSION={{ k3s_version }} K3S_TOKEN={{ k3s_token }} \
+          sh -s - server --server https://{{ first_ip }}:6443 --tls-san {{ ansible_host }} --disable servicelb
+      args:
+        creates: /etc/systemd/system/k3s.service
+
+- name: Cluster add-ons (MetalLB + address pool)
+  hosts: k3s_servers[0]
+  become: true
+  environment:
+    KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+  tasks:
+    - name: Install MetalLB
+      ansible.builtin.command: >-
+        kubectl apply -f
+        https://raw.githubusercontent.com/metallb/metallb/v0.14.8/config/manifests/metallb-native.yaml
+      register: metallb_apply
+      changed_when: "'created' in metallb_apply.stdout"
+
+    - name: Wait for the MetalLB webhook
+      ansible.builtin.command: >-
+        kubectl -n metallb-system wait --for=condition=Available deploy/controller --timeout=120s
+      changed_when: false
+
+    - name: Configure the games MetalLB pool
+      ansible.builtin.copy:
+        dest: /tmp/metallb-pool.yaml
+        content: |
+          apiVersion: metallb.io/v1beta1
+          kind: IPAddressPool
+          metadata:
+            name: games
+            namespace: metallb-system
+          spec:
+            addresses:
+              - {{ metallb_address_pool }}
+          ---
+          apiVersion: metallb.io/v1beta1
+          kind: L2Advertisement
+          metadata:
+            name: games
+            namespace: metallb-system
+
+    - name: Apply the MetalLB pool
+      ansible.builtin.command: kubectl apply -f /tmp/metallb-pool.yaml
+      register: pool_apply
+      changed_when: "'configured' in pool_apply.stdout or 'created' in pool_apply.stdout"

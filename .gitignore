@@ -1,0 +1,23 @@
+# secrets & local env — NEVER commit (this repo is public)
+.env
+.env.local
+terraform/terraform.tfvars
+
+# terraform
+terraform/.terraform/
+terraform/*.tfstate*
+terraform/.terraform.lock.hcl
+
+# generated
+ansible/inventory/games/hosts.yml
+mobile/shell/www/
+mobile/shell/android/
+mobile/shell/ios/
+mobile/shell/capacitor.config.json
+mobile/shell/node_modules/
+
+# junk
+**/data/
+node_modules/
+dist/
+*.log

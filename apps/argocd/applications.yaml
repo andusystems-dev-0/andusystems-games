@@ -1,0 +1,92 @@
+# One ArgoCD Application per app, reconciled by the mgmt hub onto the games spoke (cluster name: games).
+# Applied by deploy.yml after the cluster is registered. Adding a platform app = one entry here.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: games-cnpg
+  namespace: argocd
+spec:
+  project: games
+  source: { repoURL: https://github.com/andusystems-dev-0/andusystems-games, targetRevision: main, path: apps/cnpg }
+  destination: { name: games, namespace: save-api }
+  syncPolicy:
+    automated: { prune: true, selfHeal: true }
+    syncOptions: ["CreateNamespace=true"]
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: games-save-api
+  namespace: argocd
+spec:
+  project: games
+  source: { repoURL: https://github.com/andusystems-dev-0/andusystems-games, targetRevision: main, path: apps/save-api }
+  destination: { name: games, namespace: save-api }
+  syncPolicy:
+    automated: { prune: true, selfHeal: true }
+    syncOptions: ["CreateNamespace=true"]
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: games-save-api-uat
+  namespace: argocd
+spec:
+  project: games
+  source: { repoURL: https://github.com/andusystems-dev-0/andusystems-games, targetRevision: main, path: apps/save-api-uat }
+  destination: { name: games, namespace: save-api-uat }
+  syncPolicy:
+    automated: { prune: true, selfHeal: true }
+    syncOptions: ["CreateNamespace=true"]
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: games-edge
+  namespace: argocd
+spec:
+  project: games
+  source: { repoURL: https://github.com/andusystems-dev-0/andusystems-games, targetRevision: main, path: apps/edge }
+  destination: { name: games, namespace: edge }
+  syncPolicy:
+    automated: { prune: true, selfHeal: true }
+    syncOptions: ["CreateNamespace=true"]
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: games-web-uat
+  namespace: argocd
+spec:
+  project: games
+  source: { repoURL: https://github.com/andusystems-dev-0/andusystems-games, targetRevision: main, path: apps/web-uat }
+  destination: { name: games, namespace: web-uat }
+  syncPolicy:
+    automated: { prune: true, selfHeal: true }
+    syncOptions: ["CreateNamespace=true"]
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: games-spriteforge
+  namespace: argocd
+spec:
+  project: games
+  source: { repoURL: https://github.com/andusystems-dev-0/andusystems-games, targetRevision: main, path: apps/spriteforge }
+  destination: { name: games, namespace: spriteforge }
+  syncPolicy:
+    automated: { prune: true, selfHeal: true }
+    syncOptions: ["CreateNamespace=true"]
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: games-monitoring
+  namespace: argocd
+spec:
+  project: games
+  source: { repoURL: https://github.com/andusystems-dev-0/andusystems-games, targetRevision: main, path: apps/monitoring }
+  destination: { name: games, namespace: monitoring }
+  syncPolicy:
+    automated: { prune: true, selfHeal: true }
+    syncOptions: ["CreateNamespace=true"]

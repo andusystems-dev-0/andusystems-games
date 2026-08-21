@@ -1,0 +1,43 @@
+# grafana-agent → remote_write to the mgmt LGTM (andusystems-monitoring). One pane of glass in the
+# mgmt Grafana. Endpoint is a PLACEHOLDER until wired.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-agent
+data:
+  agent.yaml: |
+    metrics:
+      global:
+        remote_write:
+          - url: https://REPLACE_ME-mimir.andusystems.com/api/v1/push
+      configs:
+        - name: games
+          scrape_configs:
+            - job_name: save-api
+              kubernetes_sd_configs: [{ role: pod }]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: grafana-agent
+  labels: { app: grafana-agent }
+spec:
+  replicas: 1
+  selector: { matchLabels: { app: grafana-agent } }
+  template:
+    metadata: { labels: { app: grafana-agent } }
+    spec:
+      securityContext: { runAsNonRoot: true, runAsUser: 65532, seccompProfile: { type: RuntimeDefault } }
+      containers:
+        - name: agent
+          image: grafana/agent:latest
+          args: ["run", "/etc/agent/agent.yaml"]
+          volumeMounts:
+            - { name: config, mountPath: /etc/agent }
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: { drop: ["ALL"] }
+      volumes:
+        - name: config
+          configMap: { name: grafana-agent }

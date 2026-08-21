@@ -1,0 +1,55 @@
+apiVersion: v1
+kind: Secret
+metadata:
+  name: r2-creds
+  namespace: save-api
+type: Opaque
+stringData: # PLACEHOLDER — sealed at bootstrap
+  ACCESS_KEY_ID: "REPLACE_ME"
+  SECRET_ACCESS_KEY: "REPLACE_ME"
+---
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: games-db
+  namespace: save-api
+spec:
+  instances: 3
+  storage:
+    size: 10Gi
+  backup:
+    retentionPolicy: "30d"
+    barmanObjectStore:
+      destinationPath: s3://andusystems-games-backups/games-db
+      endpointURL: https://REPLACE_ME.r2.cloudflarestorage.com
+      s3Credentials:
+        accessKeyId: { name: r2-creds, key: ACCESS_KEY_ID }
+        secretAccessKey: { name: r2-creds, key: SECRET_ACCESS_KEY }
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: r2-creds
+  namespace: save-api-uat
+type: Opaque
+stringData:
+  ACCESS_KEY_ID: "REPLACE_ME"
+  SECRET_ACCESS_KEY: "REPLACE_ME"
+---
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: games-db-uat
+  namespace: save-api-uat
+spec:
+  instances: 2
+  storage:
+    size: 5Gi
+  backup:
+    retentionPolicy: "14d"
+    barmanObjectStore:
+      destinationPath: s3://andusystems-games-backups/games-db-uat
+      endpointURL: https://REPLACE_ME.r2.cloudflarestorage.com
+      s3Credentials:
+        accessKeyId: { name: r2-creds, key: ACCESS_KEY_ID }
+        secretAccessKey: { name: r2-creds, key: SECRET_ACCESS_KEY }

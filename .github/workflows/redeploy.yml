@@ -1,0 +1,52 @@
+# games-redeploy — DESTROY + recreate the games cluster, then converge. Durability is in R2:
+# ArgoCD reconciles apps/ and CNPG restores games-db/games-db-uat from R2 backups. DESTROY-gated.
+name: games-redeploy
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Type DESTROY to confirm a full destroy + recreate'
+        required: true
+        default: ''
+
+permissions:
+  contents: read
+
+concurrency:
+  group: games-deploy   # shares the deploy lock — never run both at once
+  cancel-in-progress: false
+
+jobs:
+  redeploy:
+    if: ${{ github.event.inputs.confirm == 'DESTROY' }}
+    runs-on: [self-hosted, linux, andusystems-mgmt]
+    timeout-minutes: 60
+    env:
+      TF_VAR_proxmox_endpoint: ${{ secrets.PROXMOX_ENDPOINT }}
+      TF_VAR_proxmox_api_token: ${{ secrets.PROXMOX_API_TOKEN }}
+      TF_VAR_ssh_public_keys: '["${{ secrets.SSH_PUBKEY }}"]'
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Terraform destroy + recreate
+        working-directory: terraform
+        run: |
+          terraform init -input=false
+          terraform destroy -auto-approve -input=false
+          terraform apply -auto-approve -input=false
+
+      - name: Ansible converge (k3s HA + MetalLB)
+        working-directory: ansible
+        run: |
+          install -m 600 /dev/stdin ~/.ssh/andusystems-proxmox <<< "${{ secrets.PROXMOX_SSH_KEY }}"
+          ansible-playbook -i inventory/games/hosts.yml k3s.yml
+
+      - name: Re-register spoke (ArgoCD reconciles apps/; CNPG restores from R2)
+        env:
+          KUBECONFIG_MGMT: ${{ secrets.MGMT_KUBECONFIG }}
+        run: |
+          echo "$KUBECONFIG_MGMT" > /tmp/mgmt.kubeconfig
+          KUBECONFIG=/tmp/mgmt.kubeconfig kubectl apply -f apps/argocd/

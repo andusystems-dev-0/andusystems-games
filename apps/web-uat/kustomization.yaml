@@ -1,0 +1,7 @@
+# Shared UAT static host: one nginx serving every game's UAT bundle from R2 uat/<slug>/, routed by
+# host. Private via Pangolin wildcard uat.*.games.andusystems.com. Adding a game adds NO workload.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: web-uat
+resources:
+  - resources.yaml

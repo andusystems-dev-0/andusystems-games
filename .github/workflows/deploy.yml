@@ -1,0 +1,56 @@
+# games-deploy — CREATE-OR-KEEP the games k3s cluster (VLAN 70) and converge it, then register it
+# as an ArgoCD spoke of the mgmt hub. Safe: terraform apply keeps existing VMs; never destroys.
+# Manual only (no push trigger — avoids touching the live cluster on every commit), like pterodactyl.
+name: games-deploy
+
+on:
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: games-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: [self-hosted, linux, andusystems-mgmt]
+    timeout-minutes: 45
+    env:
+      # PLACEHOLDERS — set these as repo secrets (andusystems-dev-0/andusystems-games). Fill later.
+      TF_VAR_proxmox_endpoint: ${{ secrets.PROXMOX_ENDPOINT }}
+      TF_VAR_proxmox_api_token: ${{ secrets.PROXMOX_API_TOKEN }}
+      TF_VAR_ssh_public_keys: '["${{ secrets.SSH_PUBKEY }}"]'
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Terraform apply (VMs on VLAN 70)
+        working-directory: terraform
+        run: |
+          terraform init -input=false
+          terraform apply -auto-approve -input=false
+
+      - name: Ansible converge (k3s HA + MetalLB)
+        working-directory: ansible
+        env:
+          ANSIBLE_HOST_KEY_CHECKING: "False"
+        run: |
+          install -m 600 /dev/stdin ~/.ssh/andusystems-proxmox <<< "${{ secrets.PROXMOX_SSH_KEY }}"
+          ansible-playbook -i inventory/games/hosts.yml k3s.yml
+
+      - name: Fetch games kubeconfig
+        run: |
+          scp -o StrictHostKeyChecking=no -i ~/.ssh/andusystems-proxmox \
+            ubuntu@10.238.70.41:/etc/rancher/k3s/k3s.yaml /tmp/games.kubeconfig
+          sed -i 's#127.0.0.1#10.238.70.41#' /tmp/games.kubeconfig
+
+      - name: Register games cluster as an ArgoCD spoke (mgmt hub)
+        env:
+          KUBECONFIG_MGMT: ${{ secrets.MGMT_KUBECONFIG }}   # PLACEHOLDER
+        run: |
+          echo "$KUBECONFIG_MGMT" > /tmp/mgmt.kubeconfig
+          # Add the games cluster to the mgmt ArgoCD, then apply the app-of-apps.
+          KUBECONFIG=/tmp/mgmt.kubeconfig kubectl apply -f apps/argocd/

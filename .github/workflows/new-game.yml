@@ -1,0 +1,35 @@
+name: new-game
+# Onboard a game from the Actions tab: creates the repo from the template + opens the registry PR.
+# Minimal manual intervention (scalability goal). GH_TOKEN must allow repo creation on the user account.
+on:
+  workflow_dispatch:
+    inputs:
+      slug:
+        description: game slug (kebab-case), e.g. asteroid-drift
+        required: true
+      save_mode:
+        description: lww | lww_history | slots
+        required: false
+        default: lww
+      max_slots:
+        required: false
+        default: "1"
+      history_depth:
+        required: false
+        default: "0"
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  onboard:
+    runs-on: [self-hosted, linux, andusystems-mgmt]
+    steps:
+      - uses: actions/checkout@v4
+      - env:
+          GH_TOKEN: ${{ secrets.GH_ONBOARD_TOKEN }}   # PLACEHOLDER — PAT with repo-create on andusystems-dev-0
+        run: |
+          git config user.name "games-bot"
+          git config user.email "games-bot@andusystems.com"
+          ./scripts/new-game.sh "${{ inputs.slug }}" "${{ inputs.save_mode }}" "${{ inputs.max_slots }}" "${{ inputs.history_depth }}"

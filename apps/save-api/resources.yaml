@@ -1,0 +1,79 @@
+# Prod save-api. Namespace auto-created by ArgoCD (CreateNamespace=true). The games-registry
+# ConfigMap is generated from games-registry.yaml + products.yaml (see kustomization.yaml).
+# Secrets are PLACEHOLDERS replaced by sealed-secrets at bootstrap — never commit real values.
+apiVersion: v1
+kind: Secret
+metadata:
+  name: save-api-secrets
+type: Opaque
+stringData:
+  # PLACEHOLDERS — sealed-secrets replaces these at bootstrap. JWT key MUST stay stable across redeploys.
+  DATABASE_URL: "postgres://games:REPLACE_ME@games-db-rw:5432/games?sslmode=require"
+  JWT_SIGNING_KEY: "REPLACE_ME_STABLE_PROD_KEY"
+  GAMES_STRIPE_SECRET_KEY: "REPLACE_ME_sk_live"
+  GAMES_STRIPE_WEBHOOK_SECRET: "REPLACE_ME_whsec"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: save-api
+  labels: { app: save-api }
+spec:
+  replicas: 2
+  selector:
+    matchLabels: { app: save-api }
+  template:
+    metadata:
+      labels: { app: save-api }
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile: { type: RuntimeDefault }
+      containers:
+        - name: save-api
+          image: ghcr.io/andusystems-dev-0/games-save-api:latest # built+pushed by CI
+          ports:
+            - containerPort: 8080
+          env:
+            - { name: ENV, value: "prod" }
+            - { name: ADDR, value: ":8080" }
+            - { name: REGISTRY_PATH, value: "/etc/games/games-registry.yaml" }
+          envFrom:
+            - secretRef: { name: save-api-secrets }
+          volumeMounts:
+            - { name: registry, mountPath: /etc/games }
+          readinessProbe:
+            httpGet: { path: /readyz, port: 8080 }
+          livenessProbe:
+            httpGet: { path: /healthz, port: 8080 }
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            capabilities: { drop: ["ALL"] }
+      volumes:
+        - name: registry
+          configMap: { name: games-registry }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: save-api
+spec:
+  selector: { app: save-api }
+  ports:
+    - { port: 80, targetPort: 8080 }
+---
+# Prod API is published publicly via the Cloudflare Tunnel → this Service. IngressRoute is the
+# in-cluster route the tunnel targets.
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: save-api
+spec:
+  entryPoints: [web]
+  routes:
+    - match: Host(`api.games.andusystems.com`)
+      kind: Rule
+      services:
+        - { name: save-api, port: 80 }

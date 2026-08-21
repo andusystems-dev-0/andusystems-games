@@ -1,0 +1,9 @@
+# Source of truth for every game. `scripts/new-game.sh <slug>` appends one entry here; ArgoCD
+# reconciles and the API hot-reloads. Adding a game = one entry + a template clone. No workload change.
+games:
+  - slug: asteroid-drift
+    save_mode: lww
+    history_depth: 0
+    max_slots: 1
+    max_blob_bytes: 262144
+    conflict: last_write_wins

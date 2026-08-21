@@ -1,0 +1,17 @@
+# The `games` AppProject in the mgmt ArgoCD hub. Applied by .github/workflows/deploy.yml.
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: games
+  namespace: argocd
+spec:
+  description: andusystems games estate (spoke cluster on VLAN 70)
+  sourceRepos:
+    - https://github.com/andusystems-dev-0/andusystems-games
+  destinations:
+    - name: games
+      namespace: '*'
+  clusterResourceWhitelist:
+    - { group: '*', kind: '*' }
+  namespaceResourceWhitelist:
+    - { group: '*', kind: '*' }

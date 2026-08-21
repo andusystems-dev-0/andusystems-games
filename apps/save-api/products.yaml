@@ -1,0 +1,3 @@
+# Stripe products, registry-driven so a game's purchases are config, not code (see docs/payments.md).
+# Per-env price ids resolve from STRIPE_PRICE_* secrets (test in uat / live in prod).
+products: []
