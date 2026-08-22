@@ -83,10 +83,14 @@ jobs:
 
       - name: Re-register games cluster + apps in ArgoCD (mgmt hub)
         env:
-          MGMT_KUBECONFIG: ${{ secrets.MGMT_KUBECONFIG }}
+          # Fetch a FRESH mgmt kubeconfig from the live node — the mgmt CA rotates on redeploy and
+          # its IP can drift, so a static MGMT_KUBECONFIG secret goes stale. Resilient across redeploys.
+          MGMT_API_HOST: ${{ vars.MGMT_API_HOST || '10.238.10.42' }}
         run: |
           set -euo pipefail
-          echo "$MGMT_KUBECONFIG" > /tmp/mgmt.kubeconfig
+          ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i "$SSH_KEY_PATH" \
+            ubuntu@"$MGMT_API_HOST" 'sudo cat /etc/rancher/k3s/k3s.yaml' > /tmp/mgmt.kubeconfig
+          sed -i "s#https://127.0.0.1:6443#https://$MGMT_API_HOST:6443#" /tmp/mgmt.kubeconfig
           export KUBECONFIG=/tmp/mgmt.kubeconfig
           ca=$(grep 'certificate-authority-data:' /tmp/games.kubeconfig | awk '{print $2}')
           cert=$(grep 'client-certificate-data:' /tmp/games.kubeconfig | awk '{print $2}')
