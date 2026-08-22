@@ -1,0 +1,15 @@
+# Traefik serves the TLSStore literally named "default" as the fallback cert for every
+# websecure route that doesn't pin its own Secret (IngressRoutes with tls: {}). Lives in
+# kube-system because k3s's Traefik runs there and resolves the default cert Secret in its
+# own namespace. Do NOT enable sniStrict on websecure while this is the sole default cert
+# (Traefik v3 won't match a wildcard default cert to subdomain SNI under sniStrict — traefik#10817).
+apiVersion: traefik.io/v1alpha1
+kind: TLSStore
+metadata:
+  name: default
+  namespace: kube-system
+  annotations:
+    argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
+spec:
+  defaultCertificate:
+    secretName: games-edge-tls

@@ -59,9 +59,12 @@ kind: IngressRoute
 metadata:
   name: spriteforge
 spec:
-  entryPoints: [web]
+  # Pangolin TCP-passes both :80 and :443 through to this Traefik, so serve on both.
+  # tls: {} serves the default TLSStore cert (games-edge-tls, Let's Encrypt) on websecure.
+  entryPoints: [web, websecure]
   routes:
     - match: Host(`spriteforge.andusystems.com`)   # reached only via the Pangolin private resource
       kind: Rule
       services:
         - { name: spriteforge, port: 80 }
+  tls: {}

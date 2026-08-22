@@ -1,0 +1,11 @@
+# cert-manager config for the games cluster: Let's Encrypt DNS-01 issuer + the games-edge
+# wildcard cert + the Traefik default TLSStore. The cert-manager controller itself is the
+# games-cert-manager Helm Application (apps/argocd/applications.yaml). No namespace transform —
+# each resource is namespaced explicitly (cert-manager / kube-system / cluster-scoped).
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - sealed-cloudflare-api-token.yaml
+  - clusterissuer.yaml
+  - certificate.yaml
+  - tlsstore.yaml

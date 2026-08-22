@@ -90,3 +90,46 @@ spec:
   syncPolicy:
     automated: { prune: true, selfHeal: true }
     syncOptions: ["CreateNamespace=true"]
+---
+# cert-manager controller (Helm) — Let's Encrypt DNS-01 (Cloudflare) issuer so the games
+# Traefik serves real certs for the hosts Pangolin TCP-passes through on :443. Matches platform.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: games-cert-manager
+  namespace: argocd
+  annotations: { argocd.argoproj.io/sync-wave: "-40" }
+spec:
+  project: games
+  source:
+    repoURL: https://charts.jetstack.io
+    chart: cert-manager
+    targetRevision: v1.16.2
+    helm:
+      values: |
+        crds: { enabled: true }
+        # CoreDNS → node resolvers can't see the ACME TXT at Cloudflare authoritative, so the
+        # DNS-01 self-check hangs on "record not yet propagated" — use public recursives instead.
+        dns01RecursiveNameservers: "1.1.1.1:53,8.8.8.8:53"
+        dns01RecursiveNameserversOnly: true
+  destination: { name: games, namespace: cert-manager }
+  syncPolicy:
+    automated: { prune: true, selfHeal: true }
+    syncOptions: ["CreateNamespace=true", "ServerSideApply=true"]
+---
+# Let's Encrypt issuer + games-edge wildcard cert + Traefik default TLSStore. Retries until the
+# cert-manager CRDs + namespace land (sibling app), so ordering is eventual, not a hard barrier.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: games-tls
+  namespace: argocd
+  annotations: { argocd.argoproj.io/sync-wave: "-30" }
+spec:
+  project: games
+  source: { repoURL: https://github.com/andusystems-dev-0/andusystems-games, targetRevision: main, path: apps/tls }
+  destination: { name: games, namespace: kube-system }
+  syncPolicy:
+    automated: { prune: true, selfHeal: true }
+    syncOptions: ["ServerSideApply=true"]
+    retry: { limit: 10, backoff: { duration: 15s, maxDuration: 3m, factor: 2 } }

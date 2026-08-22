@@ -8,6 +8,7 @@ spec:
   description: andusystems games estate (spoke cluster on VLAN 70)
   sourceRepos:
     - https://github.com/andusystems-dev-0/andusystems-games
+    - https://charts.jetstack.io   # cert-manager Helm chart (games-cert-manager)
   destinations:
     - name: games
       namespace: '*'
