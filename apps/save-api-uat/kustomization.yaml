@@ -1,18 +1,34 @@
-# UAT save-api = the prod base, re-namespaced + re-pointed. Private (Pangolin), separate DB + keys +
-# Stripe test keys (patched via the secret at bootstrap). Same image, same registry.
+# UAT save-api = the prod base, re-namespaced + re-pointed. Private (Pangolin), separate DB + JWT key.
+# Same image + registry. DATABASE_URL/JWT are re-pointed at the UAT-namespace secrets; the base's
+# prod JWT SealedSecret (namespace-scoped to save-api) is dropped — it can't decrypt here.
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 namespace: save-api-uat
 resources:
   - ../save-api
+  - sealed-save-api-jwt-uat.yaml
 patches:
   - target: { kind: Deployment, name: save-api }
     patch: |
       - op: replace
         path: /spec/template/spec/containers/0/env/0/value
         value: uat
+      - op: replace
+        path: /spec/template/spec/containers/0/env/3/valueFrom/secretKeyRef/name
+        value: games-db-uat-app
+      - op: replace
+        path: /spec/template/spec/containers/0/env/4/valueFrom/secretKeyRef/name
+        value: save-api-jwt-uat
   - target: { kind: IngressRoute, name: save-api }
     patch: |
       - op: replace
         path: /spec/routes/0/match
         value: Host(`uat-api.games.andusystems.com`)
+  # Drop the prod JWT SealedSecret pulled in from the base — it's sealed for the save-api namespace.
+  - target: { kind: SealedSecret, name: save-api-jwt-prod }
+    patch: |
+      $patch: delete
+      apiVersion: bitnami.com/v1alpha1
+      kind: SealedSecret
+      metadata:
+        name: save-api-jwt-prod

@@ -1,18 +1,8 @@
 # Prod save-api. Namespace auto-created by ArgoCD (CreateNamespace=true). The games-registry
 # ConfigMap is generated from games-registry.yaml + products.yaml (see kustomization.yaml).
-# Secrets are PLACEHOLDERS replaced by sealed-secrets at bootstrap — never commit real values.
-apiVersion: v1
-kind: Secret
-metadata:
-  name: save-api-secrets
-type: Opaque
-stringData:
-  # PLACEHOLDERS — sealed-secrets replaces these at bootstrap. JWT key MUST stay stable across redeploys.
-  DATABASE_URL: "postgres://games:REPLACE_ME@games-db-rw:5432/games?sslmode=require"
-  JWT_SIGNING_KEY: "REPLACE_ME_STABLE_PROD_KEY"
-  GAMES_STRIPE_SECRET_KEY: "REPLACE_ME_sk_live"
-  GAMES_STRIPE_WEBHOOK_SECRET: "REPLACE_ME_whsec"
----
+# DATABASE_URL comes from the CNPG-managed games-db-app Secret (regenerated on every rebuild, so
+# it always matches the DB). JWT_SIGNING_KEY comes from the stable sealed save-api-jwt-prod Secret.
+# Stripe keys are added (sealed) only when payments land — save-api boots without them.
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -41,8 +31,8 @@ spec:
             - { name: ENV, value: "prod" }
             - { name: ADDR, value: ":8080" }
             - { name: REGISTRY_PATH, value: "/etc/games/games-registry.yaml" }
-          envFrom:
-            - secretRef: { name: save-api-secrets }
+            - { name: DATABASE_URL, valueFrom: { secretKeyRef: { name: games-db-app, key: uri } } }
+            - { name: JWT_SIGNING_KEY, valueFrom: { secretKeyRef: { name: save-api-jwt-prod, key: key } } }
           volumeMounts:
             - { name: registry, mountPath: /etc/games }
           readinessProbe:

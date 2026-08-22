@@ -35,8 +35,10 @@ spec:
           env:
             - { name: ADDR, value: ":8090" }
             - { name: ENV, value: "prod" }
+            - { name: DATABASE_URL, valueFrom: { secretKeyRef: { name: forge-db-app, key: uri } } }
+          # FAL_KEY + R2_* land here once provided; optional so the service boots on the noop provider first.
           envFrom:
-            - secretRef: { name: spriteforge-secrets }
+            - secretRef: { name: spriteforge-secrets, optional: true }
           readinessProbe: { httpGet: { path: /readyz, port: 8090 } }
           livenessProbe: { httpGet: { path: /healthz, port: 8090 } }
           securityContext:

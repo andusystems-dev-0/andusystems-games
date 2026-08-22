@@ -4,6 +4,7 @@ namespace: save-api
 resources:
   - resources.yaml
   - sealed-forgejo-registry.yaml   # cluster-wide scope → also decrypts in the save-api-uat overlay
+  - sealed-save-api-jwt.yaml       # stable prod JWT key (save-api-jwt-prod); UAT overlay swaps in its own
 # Registry as GitOps: new-game.sh appends to games-registry.yaml → this ConfigMap → mounted + hot-reloaded.
 configMapGenerator:
   - name: games-registry

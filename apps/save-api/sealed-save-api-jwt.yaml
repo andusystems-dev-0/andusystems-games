@@ -1,0 +1,15 @@
+---
+apiVersion: bitnami.com/v1alpha1
+kind: SealedSecret
+metadata:
+  creationTimestamp: null
+  name: save-api-jwt-prod
+  namespace: save-api
+spec:
+  encryptedData:
+    key: AgAdw9QQAaaYtklkFExp/vbKh7MjG8OHg299Mb6pJ19gT5/3dG/FVd6npzgpM7t8eOcrPbCpQ7qhKI0yTlwAVVlH2/+C10+pfUyyJrQsx1Mk5srmbvhRbZBttMmotuuoKjW6CmELY/5vo7ZVKmHb7i82SZoF23V6+7AjbOvFH9S7md/ORidJcsQhJlWau1ZdK5c/zyPSVGZCS+++lvolwS5H4/gSvQd+zzdFiWiiAydHmdrc2r3U2exZ08cRyGuQBsoveMvynHtTWl6YfD0k5rthOgBcuJW7jaAiD3OEqUMeJosOo4kHLLjXwBOaGHmrfb17tC4NlVNu38zhDCB6gPXb10f+KfKYhGHc8LxiH7B0/yVh03oRgxBitzTp9IduQVafqsP8vvwCU2Kc9OAiC88BJ/ehRJPcYPvK8atJEHYqnCGRll788dfarqnstkFHPl8ocu5s0MJ38duxIV2RXUn2jtmJ1eeNgpgiY1R81pb1BmWX/wDneYTwoSQ21iq4iYQWXvrg+TGyz5rG97XZS5ipuSnu24KXX/ecZf8btaTnHghpZDmGYDEX1tPi82oP0Hp92qmau6YS0EHwiys8QRkVCUOBGhTnyYHYWVqfaAEwfRv7Xc6tQhe1RL99oav4xW1TlxtvkUfRir3BKXPvEkPvFqgy50fv6anYOpWMRJ1Pug3/R2lj7zkcxPQkDlYzo58AzWoMy0G/wMfhBokbolNic8Vv2t06XJ6dVVE5vJvfB/HrwyZFi/7CiDk+gIoeyA7063B3UdIpoUtDbiddDkAw
+  template:
+    metadata:
+      creationTimestamp: null
+      name: save-api-jwt-prod
+      namespace: save-api
