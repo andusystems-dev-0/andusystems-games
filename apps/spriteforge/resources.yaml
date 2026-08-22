@@ -25,7 +25,7 @@ spec:
   template:
     metadata: { labels: { app: spriteforge } }
     spec:
-      securityContext: { runAsNonRoot: true, seccompProfile: { type: RuntimeDefault } }
+      securityContext: { runAsNonRoot: true, runAsUser: 65532, seccompProfile: { type: RuntimeDefault } }
       imagePullSecrets:
         - { name: forgejo-registry }
       containers:

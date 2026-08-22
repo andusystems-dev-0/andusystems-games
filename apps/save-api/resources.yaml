@@ -28,6 +28,7 @@ spec:
     spec:
       securityContext:
         runAsNonRoot: true
+        runAsUser: 65532        # distroless "nonroot" UID — kubelet needs a numeric user to verify non-root
         seccompProfile: { type: RuntimeDefault }
       imagePullSecrets:
         - { name: forgejo-registry }
