@@ -6,7 +6,35 @@
   serial: 1
   vars:
     k3s_version: v1.30.5+k3s1
+    forgejo_registry_host: forgejo.andusystems.com
+    forgejo_registry_ip: 10.238.10.50   # mgmt Traefik LB VIP fronting the private in-cluster Forgejo registry
   tasks:
+    # --- Private Forgejo registry access (app images live there, not GHCR) ---
+    # Written BEFORE k3s installs so containerd picks it up on first start (fresh redeploy).
+    # If changed on a live cluster, restart k3s to reload: `systemctl restart k3s`.
+    - name: Ensure the k3s config dir exists (registries.yaml must precede the k3s install)
+      ansible.builtin.file:
+        path: /etc/rancher/k3s
+        state: directory
+        mode: "0755"
+
+    - name: Resolve the private Forgejo registry via /etc/hosts (containerd uses the node resolver)
+      ansible.builtin.lineinfile:
+        path: /etc/hosts
+        line: "{{ forgejo_registry_ip }} {{ forgejo_registry_host }}"
+        regexp: " {{ forgejo_registry_host }}$"
+        state: present
+
+    - name: Trust the self-signed Forgejo registry cert
+      ansible.builtin.copy:
+        dest: /etc/rancher/k3s/registries.yaml
+        mode: "0644"
+        content: |
+          configs:
+            "{{ forgejo_registry_host }}":
+              tls:
+                insecure_skip_verify: true
+
     - name: Determine the bootstrap (first) server
       ansible.builtin.set_fact:
         is_first: "{{ inventory_hostname == (groups['k3s_servers'] | first) }}"
