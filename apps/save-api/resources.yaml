@@ -29,9 +29,11 @@ spec:
       securityContext:
         runAsNonRoot: true
         seccompProfile: { type: RuntimeDefault }
+      imagePullSecrets:
+        - { name: forgejo-registry }
       containers:
         - name: save-api
-          image: ghcr.io/andusystems-dev-0/games-save-api:latest # built+pushed by CI
+          image: forgejo.andusystems.com/andusystems/games-save-api:latest # private Forgejo registry (in-cluster)
           ports:
             - containerPort: 8080
           env:

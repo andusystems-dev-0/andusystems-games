@@ -1,0 +1,20 @@
+---
+apiVersion: bitnami.com/v1alpha1
+kind: SealedSecret
+metadata:
+  annotations:
+    sealedsecrets.bitnami.com/cluster-wide: "true"
+  creationTimestamp: null
+  name: forgejo-registry
+  namespace: spriteforge
+spec:
+  encryptedData:
+    .dockerconfigjson: AgBK51TzRMlpFQjQddUPw+85+KcmVkE1rlFsT/pVutZXb0YFuLTlEeBXTaggjq/8hM7v8TTEbm6SfdLPeKuXLkRqdzl7RH1cjZhfI2mNZHVSyQ22JyNjlN67o1MmKBrtH989mw/1FFFgny9/aeOG9PbOGHXmBnlEozDG0tMs4z2/FrJJJ3yCN1eHm+3YCwJd1LfiW7FX+DWZz0uO9reO9np2/+Xn9BGVaplqinC55MNpaFF2j8p9VpYWOKinh8xzVIYsAOrR1/k7uYbu5jwSHqG8ADGuE0zCEQTFM3v7qrCV6kHBQeqKdeZ6zWEIdpA1EeKsOLqLvOtqIgfTpVO9qMzOcMGBLuuIChFS/qGLUjGwVcaDNUadLpP0qahAzKvmBccJBl48L/JmCPfOOB9zU9Rox58Pd8heKVAf4DOCSHd8LOKRPphkVvnD1j40H+ayO2PJP5cKd9DFR8SJ92LBP7L30nVjUlLHu3C4w+E5bahzqqYzuUogCbo5/+ArVhICb3RhBq+0pP5m5cNRB06bldsSrRfsQbKo9IP3FLg7wKVsxEX1Lub1LgjTH24d1hFzGuwmUpU6HZw/t93OFWdpU+azxHWItDg9Y37YnbMmlf6c9lyOXY0sKQGhwQGByUHavBW8He4bRTJef9o7NjSFfEXWglzne1p8TOYpMgfJqS0t+LqZoZjuoYuxXhZRZbNUg0j1n/R/cbxRDgODZwhKpdw/FsCiVJd8KSiHbLNNQsHpwIAiT0p2dksYBe3Ol8txYEGFOULqUbXaQaqVf9BxHFac5xcF1Qf2PCHWDQLoHw2/hIBRz0hGADOtpJDTf5HwnyT0vyjiMrJL8DfOZXvLofO1YXuk0IAf3J//dNQUuMCwzNk1XW+/nks8Ot2NFOU02BtjyOSd1qSaGh7AS5LQyb4c1HeDKAA=
+  template:
+    metadata:
+      annotations:
+        sealedsecrets.bitnami.com/cluster-wide: "true"
+      creationTimestamp: null
+      name: forgejo-registry
+      namespace: spriteforge
+    type: kubernetes.io/dockerconfigjson

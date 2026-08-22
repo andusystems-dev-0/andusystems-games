@@ -26,9 +26,11 @@ spec:
     metadata: { labels: { app: spriteforge } }
     spec:
       securityContext: { runAsNonRoot: true, seccompProfile: { type: RuntimeDefault } }
+      imagePullSecrets:
+        - { name: forgejo-registry }
       containers:
         - name: backend
-          image: ghcr.io/andusystems-dev-0/spriteforge:latest
+          image: forgejo.andusystems.com/andusystems/spriteforge:latest
           ports: [ { containerPort: 8090 } ]
           env:
             - { name: ADDR, value: ":8090" }

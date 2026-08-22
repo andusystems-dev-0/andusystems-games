@@ -5,3 +5,4 @@ resources:
   - resources.yaml
   - sealed-forge-db-owner.yaml
   - sealed-spriteforge-secrets.yaml
+  - sealed-forgejo-registry.yaml
