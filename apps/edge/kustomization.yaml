@@ -4,3 +4,4 @@ kind: Kustomization
 namespace: edge
 resources:
   - resources.yaml
+  - sealed-newt-creds.yaml

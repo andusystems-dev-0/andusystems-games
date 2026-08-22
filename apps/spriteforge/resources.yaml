@@ -1,18 +1,6 @@
-# SpriteForge studio — private (Pangolin only). Backend + its own CNPG db. FAL_KEY placeholder until set.
-apiVersion: v1
-kind: Secret
-metadata:
-  name: spriteforge-secrets
-type: Opaque
-stringData:
-  DATABASE_URL: "postgres://forge:REPLACE_ME@forge-db-rw:5432/forge?sslmode=require"
-  PROVIDER: "fal"
-  FAL_KEY: "REPLACE_ME_FAL_KEY"
-  R2_ENDPOINT: "https://REPLACE_ME.r2.cloudflarestorage.com"
-  R2_ACCESS_KEY_ID: "REPLACE_ME"
-  R2_SECRET_ACCESS_KEY: "REPLACE_ME"
-  R2_BUCKET: "andusystems-spriteforge"
----
+# SpriteForge studio — private (Pangolin only). Backend + its own CNPG db.
+# Secrets come from sealed-spriteforge-secrets.yaml + sealed-forge-db-owner.yaml (SealedSecrets).
+# FAL_KEY + R2_* are sealed placeholders until real keys are provided (asset generation needs fal.ai).
 apiVersion: postgresql.cnpg.io/v1
 kind: Cluster
 metadata:
@@ -20,6 +8,11 @@ metadata:
 spec:
   instances: 2
   storage: { size: 5Gi }
+  bootstrap:
+    initdb:
+      database: forge
+      owner: forge
+      secret: { name: forge-db-owner }
 ---
 apiVersion: apps/v1
 kind: Deployment
