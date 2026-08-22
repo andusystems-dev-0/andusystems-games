@@ -2,7 +2,6 @@
 apiVersion: bitnami.com/v1alpha1
 kind: SealedSecret
 metadata:
-  creationTimestamp: null
   name: newt-creds
   namespace: edge
 spec:
@@ -12,6 +11,5 @@ spec:
     PANGOLIN_ENDPOINT: AgCXRJVs3RGVXBvg8FGJ1Xo1ilZnvAULfdISaIFFHfKCoG5VLMn0uOxDTL/LcVbcaAG1vU3ndnajWe5GQs3655iGj4IyzZJWz8HbrT4It58mZR21vao8JkSQMrXWN6flAmk8OXNBt5zqoRUXqcSFYAPloRIKf8RmXEeS8C/9lFnpfT/Qj/14QGdc7cBQ7oZZ9h/VbDkZHDE7MM1KWS249byePQpKn/H+6+2x7Ex/zAVz/BrD7qt3ExpHzzi2G3FaAD27yfrrCttyqcf8wIh7txS8PRDsBoHKe38Yq9krLdxIn733l+KXeA/5sm0xHGhm5/k0GKKayn2uYpCm0UA5e+gTIgSwkvVn52l0LG6j+wv5Tj1UAFEMLvpfxBLAkedx1DO2tNMkrjjJxpTre3mA24lwmDgOjO+CF/5nN9eFUaImbSiONA3e/Q/7xHm2OJm91NLcI49dcpan8nTzi9TJyrAk+fmqsfV2yAVHsy3Tyrvp0OapHgqlITnTdTV4Dw8MI0P78gqETze7/5RBrIsoJWyKG+68sc+lF4oKVZIoND3x01F8ih/UpkRhwGAWZsjtrQAP0X+A5OFtDNmwkH/dgd/UA51Ov44/FHH18FVgTSQ/DbmE7oj83uyMbAPHOfgI4+gsyfP2kfSacirHYXgVewPx9J1QFCbb6hhpQqdHzMS4t9NiPxiDDiI8uX33weskJF83d9sAAauhIoE68/NlRwmxNAhAszMJ7ASsrHdoRvaY6g==
   template:
     metadata:
-      creationTimestamp: null
       name: newt-creds
       namespace: edge

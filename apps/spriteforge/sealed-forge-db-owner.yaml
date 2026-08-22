@@ -2,7 +2,6 @@
 apiVersion: bitnami.com/v1alpha1
 kind: SealedSecret
 metadata:
-  creationTimestamp: null
   name: forge-db-owner
   namespace: spriteforge
 spec:
@@ -11,6 +10,5 @@ spec:
     username: AgDFv8aJKzikqdFCCpF2o5EG7BRyXVebDG7NfS3th+S6ywq8vbGQKR83pK4L4QUMToAQUDVCCR/qK2zYWk9WfxBCGRGELACCLz7CP1YRDwQB0R6pXAZaQwhnZe05HoA+Pg5rJVz+06Gsp05G1osGBGacZYoLq8BdM5S7kI2Rn+HTh4OJkWj3MyLVObbqSMSh9L5Mp3Bf0I3q/u0aMvv1cgQhD6iM3RKbZHRcTxe/ry8VXV9B7FRQQ3krk9Eq7C/iu0kGhe7z/0j1CzYOJYqcJ3VxLuqyiAEif0Ank8/GhbwD+c/ZK8Y3kPn/S6NRf+xnF7zW5abKnJJ4wnYicAcfrzOkpCxr+HrR6bd4bU2jWQvq8gx8uuMJFr5ynrOWELSpFVir5psjsN4U3FEV6RzLSpdha8ATvFJp0t7oHeIwgDe132+qmrxACD0q5ui9qnFzHnpCkB+lfpgF3l1RnBS57AsdXM6kWeKeaiJ/pMx/OKajYlHlABp4tghpKBUbJBGdeZxnztbHHzdYS3CHGkwJNdKV2GoJgFM8Kmnr3W5yF9aRyuCWJpaFy6HDJu7cfesw3YtLnU0mEvHgxpu/Eh4UKV0cZ0rvkwOqlpZtHq8HHCMVOFhRvKiCxMOKEhsrKCZjE2Fca7u9MqvvT4s3pY9T4f//VTXrYPNx1BduPwIln5SbPVRhtW9MMMUM/qNo3wrkEktzcrx4Ng==
   template:
     metadata:
-      creationTimestamp: null
       name: forge-db-owner
       namespace: spriteforge

@@ -2,7 +2,6 @@
 apiVersion: bitnami.com/v1alpha1
 kind: SealedSecret
 metadata:
-  creationTimestamp: null
   name: save-api-jwt-uat
   namespace: save-api-uat
 spec:
@@ -10,6 +9,5 @@ spec:
     key: AgAe22X14twEezTBD29Y9/tMDLV9hvH41H5gc5qST/Zf1VHgqM1z093kiEtdrXrefV7BAkp1q6/LJ+WYrdgJCMgTWppk3S+mKq4k/z23+2BfHMJzfm6f+0IlQuk8YCWuM6LdCFPV/eFMGpfSFM/XIqqDSYA6KMRtq7wyN6TPLLznqpm9JNdik0IfxnAanL5ZYA71PgWclex6bEWLf2Im3lwTDmTvCtaWDnnY+a0pXr8IoFe3T9WWwxYsJTZ6rCd76u3te1u0Ww7QyXEaW1VNkiGncrUfUZdxBtHjDkCl3+t6n3dzUOSbcDyMeWqpbQJc8PJaT23gG4OAmGIG7rL5Lsr9pbWoslp8XBZh2Sx1gw0dC2FlYJtCtsEovM8msY2OfEwHQAQTa9EGqdUp1xLV3MjS+G/94MLrW4Udi5s7t6efOd7r4CZVAS+F/EXu7IMeNmzuvKEOgZjDynYoNlRPVhfEedMobNHyp1QGobR353umXRVqHhPF2UEOISDVRJGsVhNHv84DlrPo2f8mwChwELlsdPoUWW1w3dpim9TPsPjHoLQ9pPbfcJx2ZErcQWjJhZAGov0HiqrJE7ADdDzbZh5DByTq/h5mD440NnMRdVni1YKETcOhH7n0t9vr2EdYG2X1zhkZtwr69A8NnlX2aUzQBwJaHhPtJyaywF2tUb5LLlDMgXj/R31gKTvi+fGZwoCoo0WATrvqaXLQFrXCJlN4Yr/BVDe/vIQW1aRqGXtJvXz1Ui5FwX02cPBIjv+yI0wqd0uoyPJTi0l3CQqt164P
   template:
     metadata:
-      creationTimestamp: null
       name: save-api-jwt-uat
       namespace: save-api-uat
