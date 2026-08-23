@@ -105,9 +105,17 @@ The cluster + app stack are live. The entire **no-keys audit backlog is now buil
 **Bigger builds (no keys, larger):** SpriteForge Rig&Animate + Export-to-S3 backends; mobile Fastlane
 pipeline; the real idlebartender game (tic-tac-toe placeholder today); Phase 9 end-to-end sign-off.
 
+### Ops model: GHA + GitOps only
+Nothing operates the cluster from a devbox. `Makefile` targets are thin `gh workflow run` triggers:
+`cluster`/`redeploy` → `deploy.yml`/`redeploy.yml`; `backup`/`dr-drill`/`{backup,restore}-sealed-key`
+→ `ops.yml` (runs on the self-hosted runner, fetches kubeconfig, runs `scripts/*.sh` there).
+Declarative state is GitOps (ArgoCD reconciles `apps/*`). Also triggerable from the Actions tab.
+
 ### Known gaps flagged this session
-- `games-db`/`games-db-uat` have **no `bootstrap.recovery`** → a plain rebuild returns EMPTY DBs;
-  real restore uses `scripts/cnpg-recovery.template.yaml` (bump serverName generation). Decide whether
-  `redeploy.yml` should auto-recover (needs a live test — first-deploy chicken-and-egg). See `docs/runbook.md`.
+- `games-db`/`games-db-uat` have **no `bootstrap.recovery`** → a plain rebuild returns EMPTY DBs.
+  Restore is a **GitOps git edit** to `apps/cnpg/resources.yaml` (bump serverName generation + add the
+  recovery stanza from `scripts/cnpg-recovery.template.yaml`), **not** a `kubectl apply` (selfHeal would
+  revert it). Decide whether `redeploy.yml` should stamp it automatically (needs a live test —
+  first-deploy chicken-and-egg). See `docs/runbook.md`.
 - Operators were hand-installed on the **live** cluster; ArgoCD must **adopt** (not duplicate) them —
-  back up the sealed-secrets key first, confirm chart/namespace match (§1).
+  `make backup-sealed-key` first, confirm chart/namespace match (§1).

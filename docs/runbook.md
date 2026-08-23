@@ -1,9 +1,11 @@
 # Runbook — operations
 
-Run from the devbox (`/home/admin/andusystems/andusystems-games`, sources `.env.local`). Mirrors
-the pterodactyl/platform operational model. The `Makefile` wires these targets (`make help`);
-provisioning targets trigger the GHA pipeline on self-hosted runners (not local applies), DR targets
-act on the live cluster (`KUBECONFIG` = games + `AWS_*` in env).
+**All ops are GHA + GitOps** — nothing operates the cluster from a devbox. The `Makefile` (`make help`)
+is a thin `gh workflow run` trigger: `cluster`/`redeploy` → `deploy.yml`/`redeploy.yml`; every DR/ops
+target → `ops.yml`, which runs on the self-hosted runner (fetches the games kubeconfig, runs the
+matching `scripts/*.sh` there). Declarative state is GitOps — ArgoCD reconciles `apps/*` from GitHub;
+never `kubectl apply` by hand except the documented bootstrap. You can also trigger any of these from
+the GitHub **Actions** tab.
 
 ## Cluster lifecycle
 | Command | What |
@@ -29,15 +31,15 @@ A fresh cluster must come back with the same identity and decryptable secrets, f
   `s3://andusystems-dr/games/sealed-secrets-key.json` (SSE-AES256, gated by the same AWS creds as the
   CNPG backups — **never** in this public repo) and re-seeds it before the controller starts.
   `redeploy.yml` restores it with `--required` (hard-fails rather than rebuild an unrecoverable cluster).
-  Manually: `KUBECONFIG=… scripts/sealed-secrets-key.sh {backup|restore}`.
+  Ad-hoc: `make backup-sealed-key` / `make restore-sealed-key` (both trigger `ops.yml` on the runner).
 - **Postgres restores from S3.** CNPG replays base backup + WAL from `s3://andusystems-dr/cnpg/*`.
 - **Stable JWT keys** (prod + UAT) survive because their SealedSecrets are decryptable again (above).
 
 > **First-time / live-cluster cutover:** the add-ons were originally installed by hand. Before letting
-> ArgoCD adopt them, run `scripts/sealed-secrets-key.sh backup` against the live cluster so the current
-> key reaches S3 (a normal `deploy.yml` run also does this via the "Persist" step). Confirm the live
-> sealed-secrets install is the bitnami chart in ns `sealed-secrets` (matching the app) so ArgoCD
-> adopts rather than duplicates it.
+> ArgoCD adopt them, run **`make backup-sealed-key`** (triggers `ops.yml`) so the current key reaches S3
+> (a normal `deploy.yml` run also does this via the "Persist" step). Confirm the live sealed-secrets
+> install is the bitnami chart in ns `sealed-secrets` (matching the app) so ArgoCD adopts rather than
+> duplicates it.
 
 ## Data / backups
 | Command | What |
@@ -46,21 +48,21 @@ A fresh cluster must come back with the same identity and decryptable secrets, f
 | `make restore` | Prints the restore-from-S3 procedure (see below). |
 | `make dr-drill` | **Safe** canary: stand up a throwaway CNPG, back up, recover, verify row counts (`scripts/dr-drill.sh`). Run monthly. |
 
-### Restore from S3 (the real recovery path)
+### Restore from S3 (the real recovery path — GitOps)
 > ⚠️ **Gap to close:** `apps/cnpg/resources.yaml` creates `games-db` / `games-db-uat` as **empty**
-> clusters (no `bootstrap.recovery`), so a plain destroy+recreate comes back with **no data**. A true
-> restore is a one-shot recovery into a fresh cluster: bump the `serverName` generation and recover
-> from the previous one via `scripts/cnpg-recovery.template.yaml`, e.g. `games-db` (g1 → g2):
+> clusters (no `bootstrap.recovery`), so a plain destroy+recreate comes back with **no data**.
 >
-> ```sh
-> sed -e 's/__DB__/games-db/' -e 's/__NS__/save-api/' \
->     -e 's/__FROM_GEN__/games-db-g1/' -e 's/__NEW_GEN__/games-db-g2/' \
->     scripts/cnpg-recovery.template.yaml | kubectl apply -f -
-> ```
+> Restore is a **git edit**, not a `kubectl apply` — `games-cnpg` has `selfHeal: true`, so an
+> out-of-band recovery Cluster is reverted to the git spec. On a branch, edit the target Cluster in
+> `apps/cnpg/resources.yaml`: bump its `serverName` generation (`games-db-g1` → `games-db-g2`) and add
+> the `spec.bootstrap.recovery` + `externalClusters` stanzas that point at the OLD generation (copy from
+> `scripts/cnpg-recovery.template.yaml`). PR + merge → ArgoCD recreates the Cluster and replays base+WAL
+> from S3. `make restore` prints this procedure.
 >
-> `make dr-drill` proves these exact mechanics without touching prod. Backup **age** is alerted in
-> mgmt Grafana. (Follow-up: decide whether `redeploy.yml` should auto-apply the recovery template so a
-> rebuild restores data automatically — needs a live test to avoid a first-deploy chicken-and-egg.)
+> `make dr-drill` proves these exact mechanics without touching prod (throwaway namespace, not
+> ArgoCD-managed, so no selfHeal conflict). Backup **age** is alerted in mgmt Grafana. (Follow-up:
+> decide whether `redeploy.yml` should stamp the recovery stanza automatically so a rebuild restores
+> data — needs a live test to avoid a first-deploy chicken-and-egg.)
 
 ## Access recap
 - **Public/prod:** Cloudflare — `<slug>.games…` (R2/Pages), `api.games…` (Tunnel). No open ports.

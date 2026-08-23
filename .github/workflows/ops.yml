@@ -1,0 +1,79 @@
+# games-ops — run cluster DR/ops on the self-hosted runner (never from a devbox), so every operation
+# is GHA + GitOps. Picks one op, fetches a fresh games kubeconfig, runs the matching script. Safe/
+# idempotent ops only; the DESTROY-gated redeploy is redeploy.yml, and CNPG *restore* is GitOps (a git
+# edit to apps/cnpg — see docs/runbook.md), because ArgoCD selfHeal reverts any out-of-band Cluster apply.
+name: games-ops
+
+on:
+  workflow_dispatch:
+    inputs:
+      op:
+        description: operation to run
+        type: choice
+        required: true
+        options:
+          - sealed-key-backup     # persist the live sealed-secrets master key -> S3 (the cutover step)
+          - sealed-key-restore    # re-seed the sealed-secrets key onto the cluster
+          - cnpg-backup           # on-demand base backup of all three DBs -> S3
+          - dr-drill              # safe canary: backup + recover + verify row counts (throwaway ns)
+
+permissions:
+  contents: read
+
+concurrency:
+  group: games-ops
+  cancel-in-progress: false
+
+jobs:
+  ops:
+    runs-on: [self-hosted, linux, andusystems-mgmt]
+    timeout-minutes: 30
+    env:
+      SSH_KEY_PATH: /root/.ssh/andusystems-proxmox
+      AWS_REGION: us-east-1
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup tools (kubectl + aws + jq)
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends jq openssh-client unzip curl
+          if ! command -v kubectl >/dev/null; then
+            curl -fsSLo /tmp/kubectl "https://dl.k8s.io/release/$(curl -fsSL https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+            sudo install -m 0755 /tmp/kubectl /usr/local/bin/kubectl
+          fi
+          if ! command -v aws >/dev/null; then
+            curl -fsSL https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip -o /tmp/awscli.zip
+            unzip -q /tmp/awscli.zip -d /tmp && sudo /tmp/aws/install --update
+          fi
+
+      - name: Provision Proxmox SSH key
+        env:
+          KEY_BODY: ${{ secrets.PROXMOX_SSH_KEY }}
+        run: |
+          set -euo pipefail
+          mkdir -p /root/.ssh
+          printf '%s\n' "$KEY_BODY" > "$SSH_KEY_PATH"; chmod 600 "$SSH_KEY_PATH"
+          ssh-keygen -y -f "$SSH_KEY_PATH" >/dev/null || { echo "::error::PROXMOX_SSH_KEY invalid"; exit 1; }
+
+      - name: Fetch games kubeconfig
+        run: |
+          set -euo pipefail
+          ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i "$SSH_KEY_PATH" \
+            ubuntu@10.238.70.41 'sudo cat /etc/rancher/k3s/k3s.yaml' > /tmp/games.kubeconfig
+          sed -i 's#127.0.0.1#10.238.70.41#' /tmp/games.kubeconfig
+
+      - name: Run ${{ inputs.op }}
+        run: |
+          set -euo pipefail
+          export KUBECONFIG=/tmp/games.kubeconfig
+          case "${{ inputs.op }}" in
+            sealed-key-backup)  scripts/sealed-secrets-key.sh backup ;;
+            sealed-key-restore) scripts/sealed-secrets-key.sh restore ;;
+            cnpg-backup)        scripts/cnpg-backup.sh ;;
+            dr-drill)           scripts/dr-drill.sh ;;
+            *) echo "::error::unknown op '${{ inputs.op }}'"; exit 2 ;;
+          esac

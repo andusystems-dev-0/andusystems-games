@@ -4,15 +4,14 @@
 #
 # IMPORTANT: apps/cnpg/resources.yaml creates games-db / games-db-uat as EMPTY clusters (no
 # bootstrap.recovery) — so a plain destroy+recreate comes back with NO DATA. To actually restore,
-# during a rebuild bump the live serverName generation (g1 -> g2) AND recover from the PREVIOUS
-# generation, using this template. CNPG's bootstrap.recovery only runs on first creation (empty PVC),
-# so it's a one-shot: apply this INSTEAD OF the normal Cluster for the rebuild, then future backups
-# stream to the new generation.
+# during a rebuild bump the serverName generation (g1 -> g2) AND recover from the PREVIOUS generation.
+# CNPG's bootstrap.recovery only runs on first creation (empty PVC), so it's a one-shot.
 #
-# Usage (KUBECONFIG at the games cluster; cnpg-backup-creds Secret present in the target namespace):
-#   sed -e 's/__DB__/games-db/' -e 's/__NS__/save-api/' \
-#       -e 's/__NEW_GEN__/games-db-g2/' -e 's/__FROM_GEN__/games-db-g1/' \
-#       scripts/cnpg-recovery.template.yaml | kubectl apply -f -
+# RESTORE IS GITOPS, NOT AN OUT-OF-BAND APPLY. games-cnpg has selfHeal:true, so `kubectl apply` of a
+# recovery Cluster is immediately reverted to the git spec. Instead, on a branch, edit the target
+# Cluster in apps/cnpg/resources.yaml to match this template (bump serverName + add the
+# bootstrap.recovery/externalClusters stanzas below), PR + merge; ArgoCD recreates it and replays from
+# S3. This file is the reference stanza to copy — it is NOT meant to be piped to kubectl.
 # (UAT: __DB__=games-db-uat __NS__=save-api-uat __FROM_GEN__=games-db-uat-g1 __NEW_GEN__=games-db-uat-g2)
 apiVersion: postgresql.cnpg.io/v1
 kind: Cluster
