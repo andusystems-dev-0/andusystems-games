@@ -17,7 +17,7 @@ spec:
       securityContext: { runAsNonRoot: true, runAsUser: 65532, seccompProfile: { type: RuntimeDefault } }
       containers:
         - name: newt
-          image: fosrl/newt:latest
+          image: forgejo.andusystems.com/andusystems/mirror/fosrl/newt:latest
           env:
             - { name: PANGOLIN_ENDPOINT, valueFrom: { secretKeyRef: { name: newt-creds, key: PANGOLIN_ENDPOINT } } }
             - { name: NEWT_ID, valueFrom: { secretKeyRef: { name: newt-creds, key: NEWT_ID } } }

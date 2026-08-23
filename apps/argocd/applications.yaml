@@ -26,6 +26,11 @@ spec:
         # to S3 + re-seeded on rebuild (scripts/sealed-secrets-key.sh) so committed SealedSecrets stay
         # decryptable across a destroy+recreate — the #1 redeploy-reproducibility guarantee.
         fullnameOverride: sealed-secrets-controller
+        # No public registries: pull the controller from the private Forgejo mirror (mirror-images.txt).
+        image:
+          registry: forgejo.andusystems.com
+          repository: andusystems/mirror/bitnami/sealed-secrets-controller
+          tag: "0.27.1"
   destination: { name: games, namespace: sealed-secrets }
   syncPolicy:
     automated: { prune: true, selfHeal: true }
@@ -47,6 +52,10 @@ spec:
     targetRevision: 0.22.1
     helm:
       values: |
+        # No public registries: operator + operand both pull from the private Forgejo mirror.
+        image:
+          repository: forgejo.andusystems.com/andusystems/mirror/cloudnative-pg/cloudnative-pg
+          tag: "1.24.1"
         # Default operand image. The games DBs were created on PG16 and their S3 backups are PG16 data,
         # so the estate is pinned to 16 (the clusters ALSO pin spec.imageName=16 — recovery with a PG17
         # binary fails "data directory initialized by PostgreSQL version 16, not compatible"). MUST be the
@@ -55,7 +64,7 @@ spec:
         config:
           create: true
           data:
-            POSTGRES_IMAGE_NAME: ghcr.io/cloudnative-pg/postgresql:16-system-bookworm
+            POSTGRES_IMAGE_NAME: forgejo.andusystems.com/andusystems/mirror/cloudnative-pg/postgresql:16-system-bookworm
   destination: { name: games, namespace: cnpg-system }
   syncPolicy:
     automated: { prune: true, selfHeal: true }
@@ -77,11 +86,27 @@ spec:
     targetRevision: 3.3.4
     helm:
       values: |
+        # No public registries: every Kyverno image (5 controllers, the kyvernopre init, the crds
+        # migration kyverno-cli hook, and the kubectl cleanup hooks) pulls from the private Forgejo
+        # mirror. global.image.registry sets the default host; each component ALSO pins registry
+        # explicitly because the chart's per-component defaultRegistry=ghcr.io otherwise wins.
+        # (All image refs validated with `helm template` before commit — busybox is only in helm-test
+        # hooks, which ArgoCD skips, so it is intentionally not repointed.)
+        global:
+          image:
+            registry: forgejo.andusystems.com
+        crds:
+          migration:
+            image: { registry: forgejo.andusystems.com, repository: andusystems/mirror/kyverno/kyverno-cli, tag: v1.13.4 }
         # Admission webhook is on the Pod-create request path — 2 replicas spread across nodes so a
         # single node loss doesn't fail every Pod create. Modest resources for a 3-node games cluster.
         admissionController:
           replicas: 2
           podDisruptionBudget: { enabled: true, minAvailable: 1 }
+          container:
+            image: { registry: forgejo.andusystems.com, repository: andusystems/mirror/kyverno/kyverno, tag: v1.13.4 }
+          initContainer:
+            image: { registry: forgejo.andusystems.com, repository: andusystems/mirror/kyverno/kyvernopre, tag: v1.13.4 }
           topologySpreadConstraints:
             - maxSkew: 1
               topologyKey: kubernetes.io/hostname
@@ -90,18 +115,23 @@ spec:
                 matchLabels:
                   app.kubernetes.io/component: admission-controller
                   app.kubernetes.io/instance: kyverno
-        backgroundController: { replicas: 1 }
-        cleanupController:    { replicas: 1 }
-        reportsController:    { replicas: 1 }
+        backgroundController:
+          replicas: 1
+          image: { registry: forgejo.andusystems.com, repository: andusystems/mirror/kyverno/background-controller, tag: v1.13.4 }
+        cleanupController:
+          replicas: 1
+          image: { registry: forgejo.andusystems.com, repository: andusystems/mirror/kyverno/cleanup-controller, tag: v1.13.4 }
+        reportsController:
+          replicas: 1
+          image: { registry: forgejo.andusystems.com, repository: andusystems/mirror/kyverno/reports-controller, tag: v1.13.4 }
         # Extend the admission timeout so a slow node doesn't fail every Pod create (chart's knob).
         config: { webhookTimeoutSeconds: 20 }
-        # The chart's cleanup hooks default to docker.io/bitnami/kubectl, which Bitnami REMOVED from
-        # Docker Hub in 2025 (404 -> hooks ImagePullBackOff -> app Degraded). Repoint to the relocated
-        # bitnamilegacy/ repo (same fix the platform applies).
+        # Cleanup hooks: Bitnami REMOVED docker.io/bitnami/kubectl in 2025; use the relocated
+        # bitnamilegacy image, mirrored into Forgejo so nothing pulls public.
         webhooksCleanup:
-          image: { registry: docker.io, repository: bitnamilegacy/kubectl, tag: '1.30.2' }
+          image: { registry: forgejo.andusystems.com, repository: andusystems/mirror/bitnamilegacy/kubectl, tag: '1.30.2' }
         policyReportsCleanup:
-          image: { registry: docker.io, repository: bitnamilegacy/kubectl, tag: '1.30.2' }
+          image: { registry: forgejo.andusystems.com, repository: andusystems/mirror/bitnamilegacy/kubectl, tag: '1.30.2' }
   destination: { name: games, namespace: kyverno }
   syncPolicy:
     automated: { prune: true, selfHeal: true }
@@ -248,6 +278,13 @@ spec:
     helm:
       values: |
         crds: { enabled: true }
+        # No public registries: all cert-manager images (controller/webhook/cainjector/startupapicheck
+        # + the acmesolver the controller launches for HTTP-01) pull from the private Forgejo mirror.
+        image:      { repository: forgejo.andusystems.com/andusystems/mirror/jetstack/cert-manager-controller,      tag: v1.16.2 }
+        webhook:    { image: { repository: forgejo.andusystems.com/andusystems/mirror/jetstack/cert-manager-webhook,    tag: v1.16.2 } }
+        cainjector: { image: { repository: forgejo.andusystems.com/andusystems/mirror/jetstack/cert-manager-cainjector, tag: v1.16.2 } }
+        startupapicheck: { image: { repository: forgejo.andusystems.com/andusystems/mirror/jetstack/cert-manager-startupapicheck, tag: v1.16.2 } }
+        acmesolver: { image: { repository: forgejo.andusystems.com/andusystems/mirror/jetstack/cert-manager-acmesolver, tag: v1.16.2 } }
         # CoreDNS → node resolvers can't see the ACME TXT at Cloudflare authoritative, so the
         # DNS-01 self-check hangs on "record not yet propagated" — use public recursives instead.
         dns01RecursiveNameservers: "1.1.1.1:53,8.8.8.8:53"

@@ -57,7 +57,7 @@ spec:
       securityContext: { runAsNonRoot: true, runAsUser: 65532, seccompProfile: { type: RuntimeDefault } }
       containers:
         - name: agent
-          image: grafana/agent:v0.44.2
+          image: forgejo.andusystems.com/andusystems/mirror/grafana/agent:v0.44.2
           # The agent.yaml is static-format, so force static mode (v0.44 defaults to flow, where
           # -config.file is ignored → "flag required"). WAL → /data, seed/temp → /tmp; both must be
           # writable emptyDirs under the read-only root.

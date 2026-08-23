@@ -14,8 +14,11 @@ spec:
       match: { any: [{ resources: { kinds: ["Pod"] } }] }
       exclude:
         any:
-          # k3s-bundled + metallb pull public images until Stage 4 (k3s --system-default-registry +
-          # containerd mirror). Excluded so a future Enforce flip doesn't brick the control plane.
+          # kube-system: k3s-bundled images (traefik, coredns, metrics-server, local-path, klipper,
+          # pause) are baked into the k3s release tarball and imported into containerd at boot — they
+          # are NEVER pulled from a public registry, so they can't be repointed and stay excluded.
+          # metallb-system: images ARE mirrored (ansible rewrites quay.io/metallb/* → Forgejo), but the
+          # manifest is upstream-managed and baseline-excluded too, so the namespace stays excluded.
           - resources: { namespaces: ["kube-system", "metallb-system"] }
       validate:
         message: "image must come from the private Forgejo registry (forgejo.andusystems.com/*)"

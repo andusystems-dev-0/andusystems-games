@@ -8,6 +8,8 @@
     k3s_version: v1.30.5+k3s1
     forgejo_registry_host: forgejo.andusystems.com
     forgejo_registry_ip: 10.238.10.50   # mgmt Traefik LB VIP fronting the private in-cluster Forgejo registry
+    forgejo_user: "{{ lookup('env', 'FORGEJO_USER') }}"    # node-level registry auth (set in deploy/redeploy env)
+    forgejo_token: "{{ lookup('env', 'FORGEJO_TOKEN') }}"
   tasks:
     # --- Private Forgejo registry access (app images live there, not GHCR) ---
     # Written BEFORE k3s installs so containerd picks it up on first start (fresh redeploy).
@@ -25,13 +27,20 @@
         regexp: " {{ forgejo_registry_host }}$"
         state: present
 
-    - name: Trust the self-signed Forgejo registry cert
+    - name: Configure the private Forgejo registry (auth + trust self-signed cert)
+      # Node-level auth so EVERY pod pulls app + mirrored operator/runtime images from the private
+      # Forgejo registry without per-namespace imagePullSecrets. Creds passed as extra-vars from the
+      # deploy/redeploy workflow (GH secrets FORGEJO_USER/FORGEJO_TOKEN). registries.yaml perms 0600 —
+      # it holds a credential. (No public registries: everything resolves to forgejo.andusystems.com.)
       ansible.builtin.copy:
         dest: /etc/rancher/k3s/registries.yaml
-        mode: "0644"
+        mode: "0600"
         content: |
           configs:
             "{{ forgejo_registry_host }}":
+              auth:
+                username: "{{ forgejo_user }}"
+                password: "{{ forgejo_token }}"
               tls:
                 insecure_skip_verify: true
 
@@ -73,12 +82,19 @@
   environment:
     KUBECONFIG: /etc/rancher/k3s/k3s.yaml
   tasks:
-    - name: Install MetalLB
-      ansible.builtin.command: >-
-        kubectl apply -f
-        https://raw.githubusercontent.com/metallb/metallb/v0.14.8/config/manifests/metallb-native.yaml
+    - name: Install MetalLB (controller + speaker images repointed to the private Forgejo mirror)
+      # No public container registries: rewrite the upstream manifest's quay.io/metallb/* image refs to
+      # the mirror before applying, so the pods pull from Forgejo (node registries.yaml carries the auth).
+      # The manifest YAML itself is still fetched from GitHub (config, not an image) and pinned to v0.14.8.
+      ansible.builtin.shell: |
+        set -euo pipefail
+        curl -fsSL https://raw.githubusercontent.com/metallb/metallb/v0.14.8/config/manifests/metallb-native.yaml \
+          | sed 's#quay.io/metallb/#{{ forgejo_registry_host }}/andusystems/mirror/metallb/#g' \
+          | kubectl apply -f -
+      args:
+        executable: /bin/bash
       register: metallb_apply
-      changed_when: "'created' in metallb_apply.stdout"
+      changed_when: "'created' in metallb_apply.stdout or 'configured' in metallb_apply.stdout"
 
     - name: Wait for the MetalLB webhook
       ansible.builtin.command: >-

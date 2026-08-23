@@ -47,7 +47,7 @@ spec:
         data:
           compression: gzip
           encryption: AES256
-  imageName: ghcr.io/cloudnative-pg/postgresql:16-system-bookworm
+  imageName: forgejo.andusystems.com/andusystems/mirror/cloudnative-pg/postgresql:16-system-bookworm
 ---
 apiVersion: postgresql.cnpg.io/v1
 kind: ScheduledBackup
@@ -100,7 +100,7 @@ spec:
         data:
           compression: gzip
           encryption: AES256
-  imageName: ghcr.io/cloudnative-pg/postgresql:16-system-bookworm
+  imageName: forgejo.andusystems.com/andusystems/mirror/cloudnative-pg/postgresql:16-system-bookworm
 ---
 apiVersion: postgresql.cnpg.io/v1
 kind: ScheduledBackup

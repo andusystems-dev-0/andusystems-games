@@ -15,8 +15,8 @@ _Audited 2026-08-23 across the games estate: `andusystems-games`, `-save-api`, `
 |---|---|---|
 | games: deploy / redeploy / ops / new-game / mobile-package(android) | `[self-hosted, linux, andusystems-mgmt]` | ✅ |
 | template: ci.yml · idlebartender: ci.yml | `[self-hosted, linux, andusystems-mgmt]` | ✅ |
-| **save-api: image.yml** | `ubuntu-latest` | ❌ fix → self-hosted |
-| **spriteforge: image.yml** | `ubuntu-latest` | ❌ fix → self-hosted |
+| save-api: image.yml | `[self-hosted, linux, andusystems-mgmt]` | ✅ (fixed — docker build → private Forgejo) |
+| spriteforge: image.yml | `[self-hosted, linux, andusystems-mgmt]` | ✅ (fixed — docker build → private Forgejo) |
 | mobile-package: ios job | `${{ vars.IOS_RUNNER }}` | ⚠ must be a **self-hosted** macOS runner (not a hosted one) |
 
 ## Rule 2/3 — public images (this table IS the mirror list)
@@ -43,6 +43,28 @@ Everything below must be mirrored into `forgejo.andusystems.com/andusystems/mirr
 Helm **chart sources** (`bitnami.github.io`, `cloudnative-pg.github.io`, `kyverno.github.io`,
 `charts.jetstack.io`) are HTTP chart repos, not container registries — allowed — but each chart's
 **operand images** (above) must be overridden to the Forgejo mirror via Helm values.
+
+## Status (2026-08-23) — Stages 1–5 landed
+- **Stage 1 ✅** `mirror-images.yml` mirrors the full pinned set (`mirror-images.txt`) into
+  `forgejo.andusystems.com/andusystems/mirror/…` (incl. `kyverno/kyverno-cli` for the crds-migration hook).
+- **Stage 2 ✅** save-api + spriteforge build on self-hosted runners → private Forgejo; Dockerfile bases +
+  `apps/{edge,monitoring,web-uat}` repointed to the mirror.
+- **Stage 3 ✅** cnpg (operator image + `POSTGRES_IMAGE_NAME` + Cluster `imageName`), kyverno (5 controllers +
+  kyvernopre + kyverno-cli + kubectl cleanup hooks), cert-manager (controller/webhook/cainjector/
+  startupapicheck/acmesolver), sealed-secrets — all Helm image values repoint to the mirror. Every chart
+  verified to render 100% Forgejo images via `helm template` before commit.
+- **Stage 4 ✅** node-level Forgejo **auth** in `registries.yaml` (deploy/redeploy pass `FORGEJO_USER/TOKEN`),
+  so all pods pull the mirrored images privately with no per-namespace pull secrets; metallb controller +
+  speaker rewritten from `quay.io/metallb/*` to the mirror in `ansible/k3s.yml`.
+- **Stage 5 ✅** CI lint (`scripts/lint-no-public-images.sh`, comment/rewrite-aware) + Kyverno
+  `images-from-forgejo-only` ClusterPolicy. Policy stays **Audit** through the validating redeploy, then
+  flips to **Enforce** (only `kube-system` + `metallb-system` excluded — see below).
+
+**Remaining exception — k3s-bundled images (`kube-system`):** traefik, coredns, metrics-server,
+local-path-provisioner, klipper-lb, pause are baked into the k3s release tarball and imported into
+containerd at boot — they are **never pulled from a public registry**, so they cannot be repointed
+without re-packaging the k3s air-gap bundle (a separate, larger effort). They keep their `rancher/*`
+refs and `kube-system` stays Kyverno-excluded. This is the one accepted deviation from "no public refs."
 
 ## Staged migration (chosen: full estate) — sequenced so nothing breaks
 - **Stage 1 — mirror (non-breaking):** a GHA self-hosted `mirror-images.yml` that `crane copy`s the pinned

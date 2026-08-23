@@ -13,9 +13,6 @@ golang:1.24-alpine
 node:22-bookworm-slim
 gcr.io/distroless/static:nonroot
 
-# --- CI builder (kaniko, sourced from Forgejo by the app image.yml workflows) ---
-gcr.io/kaniko-project/executor:v1.23.2-debug
-
 # --- app runtime images ---
 fosrl/newt:latest
 grafana/agent:v0.44.2
@@ -31,6 +28,7 @@ ghcr.io/kyverno/kyvernopre:v1.13.4
 ghcr.io/kyverno/background-controller:v1.13.4
 ghcr.io/kyverno/cleanup-controller:v1.13.4
 ghcr.io/kyverno/reports-controller:v1.13.4
+ghcr.io/kyverno/kyverno-cli:v1.13.4
 docker.io/bitnamilegacy/kubectl:1.30.2
 
 # --- cert-manager (chart v1.16.2) ---
