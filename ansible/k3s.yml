@@ -79,6 +79,8 @@
 - name: Cluster add-ons (MetalLB + address pool)
   hosts: k3s_servers[0]
   become: true
+  vars:
+    forgejo_registry_host: forgejo.andusystems.com   # play-scoped: the MetalLB image rewrite needs it here too
   environment:
     KUBECONFIG: /etc/rancher/k3s/k3s.yaml
   tasks:
