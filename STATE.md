@@ -121,6 +121,9 @@ Declarative state is GitOps (ArgoCD reconciles `apps/*`). Also triggerable from 
   new generation. Ultimate proof is a real `redeploy CONFIRM=DESTROY` (de-risked; live clusters untouched
   until then). CNPG constraint that shaped this: can't archive to a non-empty serverName, so generations
   advance per rebuild; can't flip a live cluster's bootstrap, so recovery only lands on fresh clusters.
+- **Monitoring ✅** grafana-agent → mgmt Prometheus remote-write receiver (xcluster-gateway LB,
+  cluster=games). Fixed a missing-RBAC gap (agent ran as default SA → 0 targets); now scraping +
+  remote-writing with 0 failures (save-api prod+uat + annotation-based pods).
 - ~~Operators hand-installed on the live cluster; ArgoCD must adopt not duplicate~~ **RESOLVED
   2026-08-23:** the first `deploy.yml` duplicated (sealed-secrets was raw-manifest in kube-system, cnpg
   was upstream manifests) — remediated interactively (canonical sealed-secrets key migrated into ns
