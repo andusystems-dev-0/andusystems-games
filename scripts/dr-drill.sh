@@ -28,7 +28,7 @@ NS="dr-drill-$(date +%s)"
 DEST="s3://${DR_BUCKET}/cnpg/${DRILL_STORE}"
 K() { kubectl -n "$NS" "$@"; }
 
-echo "==> namespace $NS  serverName $SRV  dest $DEST"
+echo "==> namespace $NS  generations $SRV1 -> $SRV2 -> $SRV3  dest $DEST"
 kubectl create ns "$NS"
 trap 'kubectl delete ns "$NS" --wait=false >/dev/null 2>&1 || true' EXIT
 
@@ -115,7 +115,7 @@ backup_now drill-backup-1
 echo "== PHASE 2: DESTROY + rebuild (recover from $SRV1 -> archive to fresh $SRV2) =="
 K delete cluster drill --timeout=5m
 recover_cluster "$SRV1" "$SRV2"
-K wait --for=condition=Ready cluster/drill --timeout=15m
+K wait --for=condition=Ready cluster/drill --timeout=8m
 C2=$(count); echo "    after rebuild: $C2 rows (want 1000)"
 [ "$C2" = "1000" ] || { echo "✗ FAIL: recovery did not restore rows"; exit 1; }
 
@@ -127,7 +127,7 @@ backup_now drill-backup-2   # base backup on the recovered timeline, to the new 
 echo "== PHASE 4: DESTROY + rebuild AGAIN (recover from $SRV2 -> archive to fresh $SRV3) =="
 K delete cluster drill --timeout=5m
 recover_cluster "$SRV2" "$SRV3"
-K wait --for=condition=Ready cluster/drill --timeout=15m
+K wait --for=condition=Ready cluster/drill --timeout=8m
 C4=$(count); echo "    after 2nd rebuild: $C4 rows (want 1500)"
 
 if [ "$C4" = "1500" ]; then
