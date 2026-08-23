@@ -147,9 +147,17 @@ jobs:
             --from-literal=server=https://10.238.70.41:6443 \
             --from-literal=config="$config" \
             --dry-run=client -o yaml \
-            | kubectl label --local -f - argocd.argoproj.io/secret-type=cluster -o yaml \
-            | kubectl apply -f -
-          kubectl apply -f apps/argocd/
+            | kubectl label --local -f - argocd.argoproj.io/secret-type=cluster -o yaml > /tmp/cluster-games.yaml
+          # The mgmt Kyverno admission webhook (failurePolicy: Fail) can flap under platform load and
+          # transiently reject applies ("failed calling webhook"); retry both applies so a momentary
+          # mgmt hiccup doesn't fail the games redeploy.
+          for a in $(seq 1 12); do
+            if kubectl apply -f /tmp/cluster-games.yaml && kubectl apply -f apps/argocd/; then
+              echo "registered + applied ArgoCD apps (attempt $a)"; break
+            fi
+            [ "$a" = 12 ] && { echo "::error::ArgoCD registration failing after retries — check mgmt Kyverno/admission webhook"; exit 1; }
+            echo "::warning::registration attempt $a failed — retrying in 20s"; sleep 20
+          done
 
       # After ArgoCD recreates + recovers the clusters, take an immediate base backup into the NEW
       # generation so it is independently recoverable before the nightly runs — otherwise a back-to-back
