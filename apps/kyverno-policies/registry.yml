@@ -1,13 +1,13 @@
 # Registry policy: every workload image must come from the private Forgejo registry. This makes the
-# "no public images" rule self-enforcing (docs/registry-audit.md). Starts in Audit — it REPORTS every
-# non-Forgejo image via PolicyReports (a continuous compliance audit) without blocking — and flips to
-# Enforce once the registry migration (mirror + repoints, Stages 1-4) lands.
+# "no public images" rule self-enforcing (docs/registry-audit.md). Enforced: a validating redeploy
+# (2026-08-23) confirmed the rebuilt cluster runs 100% Forgejo images (Kyverno audit: 0 fail / 55 pass;
+# `kubectl get pods -A` image scan: 0 public), so blocking non-Forgejo pods is now safe.
 apiVersion: kyverno.io/v1
 kind: ClusterPolicy
 metadata:
   name: images-from-forgejo-only
 spec:
-  validationFailureAction: Audit   # TODO(stage5): flip to Enforce after the migration completes
+  validationFailureAction: Enforce   # DENY any Pod whose image isn't forgejo.andusystems.com/* (kube-system + metallb-system excluded below)
   background: true
   rules:
     - name: only-forgejo-registry
