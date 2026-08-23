@@ -62,6 +62,20 @@ jobs:
           tofu init -input=false
           tofu apply -auto-approve -input=false
 
+      # Fresh VMs need ~30-60s to boot sshd; ansible would otherwise fail with "connection refused".
+      - name: Wait for SSH on the games nodes
+        run: |
+          set -euo pipefail
+          for host in 10.238.70.41 10.238.70.42 10.238.70.43; do
+            echo "waiting for ssh on $host..."
+            for i in $(seq 1 60); do
+              ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=5 \
+                -i "$SSH_KEY_PATH" ubuntu@"$host" true 2>/dev/null && { echo "  $host up"; break; }
+              [ "$i" = 60 ] && { echo "::error::$host SSH not up after 5min"; exit 1; }
+              sleep 5
+            done
+          done
+
       - name: Ansible converge (k3s HA + MetalLB)
         working-directory: ansible
         env:
