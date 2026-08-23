@@ -15,10 +15,19 @@ spec:
           image: nginxinc/nginx-unprivileged:stable
           ports: [ { containerPort: 8080 } ]
           # TODO: config proxies uat.<slug>.games… → R2 uat/<slug>/ (or an init-sync sidecar).
+          # nginx needs writable temp/cache/pid paths; the root fs is read-only, so mount emptyDirs.
+          volumeMounts:
+            - { name: tmp, mountPath: /tmp }
+            - { name: cache, mountPath: /var/cache/nginx }
           securityContext:
             allowPrivilegeEscalation: false
             readOnlyRootFilesystem: true
             capabilities: { drop: ["ALL"] }
+      volumes:
+        - name: tmp
+          emptyDir: {}
+        - name: cache
+          emptyDir: {}
 ---
 apiVersion: v1
 kind: Service

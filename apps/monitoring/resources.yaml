@@ -6,7 +6,10 @@ metadata:
   name: grafana-agent
 data:
   agent.yaml: |
+    server:
+      log_level: warn
     metrics:
+      wal_directory: /data          # writable emptyDir — /etc/agent is a read-only configMap mount
       global:
         remote_write:
           - url: https://REPLACE_ME-mimir.andusystems.com/api/v1/push
@@ -30,10 +33,14 @@ spec:
       securityContext: { runAsNonRoot: true, runAsUser: 65532, seccompProfile: { type: RuntimeDefault } }
       containers:
         - name: agent
-          image: grafana/agent:latest
-          args: ["run", "/etc/agent/agent.yaml"]
+          image: grafana/agent:v0.44.2
+          # Static mode: -config.file (the agent.yaml is static-format). The flow-mode `run`
+          # subcommand errored with "-config.file flag required" + can't write its WAL under a
+          # read-only root, so it crash-looped.
+          args: ["-config.file=/etc/agent/agent.yaml", "-server.http.address=0.0.0.0:12345"]
           volumeMounts:
             - { name: config, mountPath: /etc/agent }
+            - { name: data, mountPath: /data }
           securityContext:
             allowPrivilegeEscalation: false
             readOnlyRootFilesystem: true
@@ -41,3 +48,5 @@ spec:
       volumes:
         - name: config
           configMap: { name: grafana-agent }
+        - name: data
+          emptyDir: {}
