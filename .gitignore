@@ -15,6 +15,9 @@ mobile/shell/android/
 mobile/shell/ios/
 mobile/shell/capacitor.config.json
 mobile/shell/node_modules/
+mobile/shell/fastlane/metadata/   # generated per-game by scripts/prepare.mjs from game.json
+mobile/shell/fastlane/report.xml
+mobile/shell/Gemfile.lock
 
 # junk
 **/data/

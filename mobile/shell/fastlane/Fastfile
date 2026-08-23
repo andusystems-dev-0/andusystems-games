@@ -1,0 +1,65 @@
+# Fastlane lanes for the shared offline Capacitor shell (one generic app, any game — D-011).
+#   beta    = TestFlight + Play internal testing  (UAT)
+#   release = App Store   + Play production        (prod)
+# The per-game app id + store metadata are written by scripts/prepare.mjs from the game's game.json
+# (capacitor.config.json + fastlane/metadata/*). Signing + store API secrets come from CI env.
+#
+# No Apple Developer / Play Console accounts (or a macOS runner) exist yet — these lanes are READY to
+# run once they do (STATE.md §5). Digital-goods purchases go through the stores' IAP, never Stripe
+# in-app (App Store 3.1.1 / Play Billing) — see docs/mobile-release.md.
+
+AAB = "android/app/build/outputs/bundle/release/app-release.aab".freeze
+
+platform :android do
+  desc "Play internal testing (UAT beta)"
+  lane :beta do
+    upload_to_play_store(
+      track: "internal",
+      aab: AAB,
+      json_key_data: ENV["PLAY_SERVICE_ACCOUNT_JSON"],
+      skip_upload_apk: true,
+      skip_upload_images: true,
+      skip_upload_screenshots: true
+    )
+  end
+
+  desc "Play production (prod release)"
+  lane :release do
+    upload_to_play_store(
+      track: "production",
+      aab: AAB,
+      json_key_data: ENV["PLAY_SERVICE_ACCOUNT_JSON"],
+      skip_upload_apk: true
+    )
+  end
+end
+
+platform :ios do
+  before_all do
+    # App Store Connect API key auth (no interactive Apple ID). Key content is base64 in CI.
+    if ENV["APP_STORE_CONNECT_KEY_ID"]
+      app_store_connect_api_key(
+        key_id: ENV["APP_STORE_CONNECT_KEY_ID"],
+        issuer_id: ENV["APP_STORE_CONNECT_ISSUER_ID"],
+        key_content: ENV["APPLE_API_KEY_P8"],
+        is_key_content_base64: true
+      )
+    end
+  end
+
+  desc "TestFlight (UAT beta)"
+  lane :beta do
+    build_app(workspace: "ios/App/App.xcworkspace", scheme: "App", export_method: "app-store")
+    upload_to_testflight(skip_waiting_for_build_processing: true)
+  end
+
+  desc "App Store production (prod release)"
+  lane :release do
+    build_app(workspace: "ios/App/App.xcworkspace", scheme: "App", export_method: "app-store")
+    upload_to_app_store(
+      submit_for_review: false, # flip to true once store listings + IAP review notes are ready
+      force: true,              # skip the interactive HTML preview in CI
+      precheck_include_in_app_purchases: false
+    )
+  end
+end

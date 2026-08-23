@@ -1,0 +1,18 @@
+# The shell is generic — the per-game identifier comes from capacitor.config.json (appId), which
+# scripts/prepare.mjs writes from game.json (com.andusystems.games.<slug>). So the same shell + Appfile
+# package any game; nothing here is game-specific.
+require "json"
+
+cfg = File.exist?("capacitor.config.json") ? JSON.parse(File.read("capacitor.config.json")) : {}
+app_id = cfg["appId"] || ENV["APP_ID"] || "com.andusystems.games.unknown"
+
+for_platform :android do
+  package_name(app_id)
+end
+
+for_platform :ios do
+  app_identifier(app_id)
+  apple_id(ENV["APPLE_ID"]) if ENV["APPLE_ID"]         # store account email
+  team_id(ENV["APPLE_TEAM_ID"]) if ENV["APPLE_TEAM_ID"]
+  itc_team_id(ENV["APPLE_ITC_TEAM_ID"]) if ENV["APPLE_ITC_TEAM_ID"]
+end

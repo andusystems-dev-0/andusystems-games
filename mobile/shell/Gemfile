@@ -1,0 +1,4 @@
+# Fastlane pinned via bundler so CI is reproducible. `bundle exec fastlane <platform> <lane>`.
+source "https://rubygems.org"
+
+gem "fastlane"
