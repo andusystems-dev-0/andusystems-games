@@ -47,14 +47,15 @@ spec:
     targetRevision: 0.22.1
     helm:
       values: |
-        # Default operand image for clusters that don't pin spec.imageName (games-db, games-db-uat,
-        # forge-db). MUST be the -system- flavor: CNPG dropped barman-cloud from the standard/minimal
-        # images, which silently breaks WAL archiving + ALL S3 backups ("Missing Barman Cloud
-        # installation in the operand image"). Same pin as the platform operator.
+        # Default operand image. The games DBs were created on PG16 and their S3 backups are PG16 data,
+        # so the estate is pinned to 16 (the clusters ALSO pin spec.imageName=16 — recovery with a PG17
+        # binary fails "data directory initialized by PostgreSQL version 16, not compatible"). MUST be the
+        # -system- flavor: CNPG dropped barman-cloud from the standard/minimal images, which silently
+        # breaks WAL archiving + ALL S3 backups. (A PG16->17 major upgrade is a separate deliberate op.)
         config:
           create: true
           data:
-            POSTGRES_IMAGE_NAME: ghcr.io/cloudnative-pg/postgresql:17-system-bookworm
+            POSTGRES_IMAGE_NAME: ghcr.io/cloudnative-pg/postgresql:16-system-bookworm
   destination: { name: games, namespace: cnpg-system }
   syncPolicy:
     automated: { prune: true, selfHeal: true }
