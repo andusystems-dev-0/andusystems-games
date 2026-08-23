@@ -53,6 +53,7 @@ spec:
   template:
     metadata: { labels: { app: grafana-agent } }
     spec:
+      serviceAccountName: grafana-agent   # needs pod/node/service list+watch for kubernetes_sd, else 0 targets
       securityContext: { runAsNonRoot: true, runAsUser: 65532, seccompProfile: { type: RuntimeDefault } }
       containers:
         - name: agent
@@ -78,3 +79,26 @@ spec:
           emptyDir: {}
         - name: tmp
           emptyDir: {}
+---
+# RBAC so kubernetes_sd can discover scrape targets. Without this the agent runs as the default SA,
+# can't list pods, finds 0 targets, and remote_write ships nothing (endpoint was fine, targets weren't).
+apiVersion: v1
+kind: ServiceAccount
+metadata: { name: grafana-agent }
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata: { name: grafana-agent }
+rules:
+  - apiGroups: [""]
+    resources: [nodes, nodes/proxy, nodes/metrics, services, endpoints, pods]
+    verbs: [get, list, watch]
+  - nonResourceURLs: ["/metrics", "/metrics/cadvisor"]
+    verbs: [get]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata: { name: grafana-agent }
+roleRef: { apiGroup: rbac.authorization.k8s.io, kind: ClusterRole, name: grafana-agent }
+subjects:
+  - { kind: ServiceAccount, name: grafana-agent, namespace: monitoring }
