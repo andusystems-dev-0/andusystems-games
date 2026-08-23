@@ -10,17 +10,40 @@ Makefile/scripts in ROADMAP Phase 0–1.
 | `make cluster` | Terraform VMs (games VLAN) + Ansible k3s. Safe, converge-only. |
 | `make register-spoke` | Register the cluster with the mgmt ArgoCD hub; apply the `games` AppProject + app-of-apps. |
 | `make bootstrap-secrets` | Seal + seed the bootstrap secrets (see list below). |
-| `make redeploy` (`CONFIRM=DESTROY`) | Destroy + recreate the cluster and **restore CNPG from R2**. Durability is in R2, not disk. |
+| `make redeploy` (`CONFIRM=DESTROY`) | Destroy + recreate the cluster and **restore CNPG from S3**. Durability is off-cluster (S3), not disk. Runs `.github/workflows/redeploy.yml`. |
 
 ArgoCD (mgmt hub) reconciles `apps/*` from GitHub — don't `kubectl apply` by hand except the
 documented bootstrap.
 
+### Redeploy reproducibility (what makes "rebuild from scratch" actually true)
+A fresh cluster must come back with the same identity and decryptable secrets, from GitOps alone:
+
+- **Cluster add-ons are ArgoCD apps, not hand-installs.** `sealed-secrets` (wave -50), `cert-manager`
+  (-40), `cnpg-operator` (-30), `kyverno` (-20), and `kyverno-policies` (5) are all Applications in
+  `apps/argocd/applications.yaml`. A `deploy.yml` / `redeploy.yml` run recreates every one — nothing
+  is installed by `kubectl` on the side anymore.
+- **The sealed-secrets master key is persisted, not regenerated.** Every committed SealedSecret (JWT
+  keys, CNPG owner/backup creds, Newt, Cloudflare token, Forgejo pull creds) is encrypted against one
+  controller key. `scripts/sealed-secrets-key.sh` backs it up (first-write-wins) to
+  `s3://andusystems-dr/games/sealed-secrets-key.json` (SSE-AES256, gated by the same AWS creds as the
+  CNPG backups — **never** in this public repo) and re-seeds it before the controller starts.
+  `redeploy.yml` restores it with `--required` (hard-fails rather than rebuild an unrecoverable cluster).
+  Manually: `KUBECONFIG=… scripts/sealed-secrets-key.sh {backup|restore}`.
+- **Postgres restores from S3.** CNPG replays base backup + WAL from `s3://andusystems-dr/cnpg/*`.
+- **Stable JWT keys** (prod + UAT) survive because their SealedSecrets are decryptable again (above).
+
+> **First-time / live-cluster cutover:** the add-ons were originally installed by hand. Before letting
+> ArgoCD adopt them, run `scripts/sealed-secrets-key.sh backup` against the live cluster so the current
+> key reaches S3 (a normal `deploy.yml` run also does this via the "Persist" step). Confirm the live
+> sealed-secrets install is the bitnami chart in ns `sealed-secrets` (matching the app) so ArgoCD
+> adopts rather than duplicates it.
+
 ## Data / backups
 | Command | What |
 |---|---|
-| `make backup` | On-demand CNPG base backup → R2 (`andusystems-games-backups`). Nightly is a scheduled CNPG backup. |
-| `make restore` | Restore the latest R2 backup onto `games-db` / `games-db-uat`. |
-| DR drill (monthly) | Kill a DB, restore from R2, verify a known save round-trips. Backup **age** is alerted in Grafana. |
+| `make backup` | On-demand CNPG base backup → S3 (`s3://andusystems-dr/cnpg/*`). Nightly is a scheduled CNPG backup. |
+| `make restore` | Restore the latest S3 backup onto `games-db` / `games-db-uat`. |
+| DR drill (monthly) | Kill a DB, restore from S3, verify a known save round-trips. Backup **age** is alerted in Grafana. |
 
 ## Access recap
 - **Public/prod:** Cloudflare — `<slug>.games…` (R2/Pages), `api.games…` (Tunnel). No open ports.

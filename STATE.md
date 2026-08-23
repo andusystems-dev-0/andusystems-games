@@ -1,17 +1,28 @@
 # andusystems-games — state & handoff
 
-Snapshot of the games estate. **Start here if you return.** The estate is fully documented but
-**not yet built** — this is the planning baseline.
+Snapshot of the games estate. **Start here if you return.**
 
-_Last updated: 2026-08-21._
+_Last updated: 2026-08-23._
 
 ---
 
-## 1. Status: PLANNING ✅ / BUILD: not started
+## 1. Status: CLUSTER LIVE ✅ / hardening for redeploy-reproducibility
 
-All architecture, contracts, and the phased plan are written (this repo's `docs/` + `ROADMAP.md`,
-plus the four sibling repos). Nothing is deployed. No cluster exists yet. The next action is
-**ROADMAP Phase 0** (stand up the games k3s cluster).
+The VLAN-70 k3s cluster is up and registered as an ArgoCD spoke; `apps/*` reconcile from GitHub
+(cnpg + save-api + save-api-uat + edge/newt + web-uat + spriteforge + monitoring + cert-manager +
+tls). Backups stream to **S3** (`s3://andusystems-dr/cnpg/*`), not R2. Current focus is **Phase 0
+hardening** so a from-scratch rebuild is truly reproducible.
+
+**Just landed (this repo, pending commit+push+deploy):** the reproducibility trio —
+- sealed-secrets, cnpg-operator, kyverno (+ games kyverno baseline) converted from hand-installs to
+  ArgoCD Helm apps (`apps/argocd/applications.yaml`, early sync-waves; AppProject sourceRepos updated);
+- sealed-secrets **master-key persistence** (`scripts/sealed-secrets-key.sh` → S3, re-seeded by
+  `deploy.yml`/`redeploy.yml`) so committed SealedSecrets survive a rebuild — see `docs/runbook.md`.
+
+**One-time cutover** on the live cluster before ArgoCD adopts the add-ons: back up the current
+sealed-secrets key to S3 (`scripts/sealed-secrets-key.sh backup`, or a normal `deploy.yml` run),
+then confirm the live sealed-secrets/cnpg installs match the new apps (bitnami chart in ns
+`sealed-secrets`; cnpg operator in ns `cnpg-system`) so ArgoCD adopts rather than duplicates.
 
 ## 2. Decisions locked (see `docs/decisions.md` for the full ADR log)
 
@@ -73,8 +84,15 @@ plus the four sibling repos). Nothing is deployed. No cluster exists yet. The ne
 
 ## 6. Next action
 
-App stack (save-api, SDK, template+shell, spriteforge) is **built + verified**; cluster IaC +
-`apps/*` are **written + validated** (terraform validate, kustomize build, ansible syntax-check).
-Next: **fill the placeholder secrets** (see §5) and run `.github/workflows/deploy.yml` to provision
-the VLAN-70 cluster, then let ArgoCD reconcile `apps/`. Then create the Pangolin/Cloudflare/Stripe
-resources and swap their placeholders. Push the 5 repos to `andusystems-dev-0` when ready.
+The cluster + app stack are live. Working the end-of-session audit, in order:
+
+1. **Reproducibility trio — DONE in-repo (§1), needs commit+push + a `deploy.yml` run + the one-time
+   cutover.** After that, verify a real redeploy comes back healthy.
+2. **Restore drill** — kill `games-db`, restore from S3, confirm a known save round-trips (model on
+   `andusystems-platform/scripts/dr-drill.sh`). Proves the S3 backups are recoverable.
+3. **Quick wins** — register `idlebartender` in `apps/save-api/games-registry.yaml` + `products.yaml`;
+   SpriteForge S3 asset store (replace `store.Noop`).
+4. **Monitoring** — swap the `REPLACE_ME-mimir` remote_write URL in `apps/monitoring/resources.yaml`
+   for the real mgmt LGTM push URL + RBAC.
+5. **Edge routes** — UAT DNS + websecure routes + Pangolin resources for `uat-api` / `uat.*.games…`.
+6. **Key-gated slices** — fal.ai (SpriteForge gen), Stripe (payments), Apple/Google (store submission).

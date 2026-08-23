@@ -1,5 +1,7 @@
 # games-redeploy — DESTROY + recreate the games cluster, then converge + re-register. Durability is
-# in R2: ArgoCD reconciles apps/ and CNPG restores games-db/games-db-uat from R2 backups. DESTROY-gated.
+# off-cluster: ArgoCD reconciles apps/ and CNPG restores games-db/games-db-uat from the S3 barman
+# backups (s3://andusystems-dr/cnpg/*). The persisted sealed-secrets master key is re-seeded first so
+# the committed SealedSecrets stay decryptable. DESTROY-gated.
 name: games-redeploy
 
 on:
@@ -80,6 +82,12 @@ jobs:
           ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i "$SSH_KEY_PATH" \
             ubuntu@10.238.70.41 'sudo cat /etc/rancher/k3s/k3s.yaml' > /tmp/games.kubeconfig
           sed -i 's#127.0.0.1#10.238.70.41#' /tmp/games.kubeconfig
+
+      # A rebuilt cluster MUST re-seed the persisted sealed-secrets key BEFORE ArgoCD installs the
+      # controller — otherwise a fresh key makes every committed SealedSecret undecryptable. Hard-fail
+      # (--required) if S3 has no key: better to stop than to silently rebuild an unrecoverable cluster.
+      - name: Restore sealed-secrets master key (REQUIRED)
+        run: KUBECONFIG=/tmp/games.kubeconfig scripts/sealed-secrets-key.sh restore --required
 
       - name: Re-register games cluster + apps in ArgoCD (mgmt hub)
         env:

@@ -1,5 +1,144 @@
 # One ArgoCD Application per app, reconciled by the mgmt hub onto the games spoke (cluster name: games).
 # Applied by deploy.yml after the cluster is registered. Adding a platform app = one entry here.
+#
+# Cluster-add-ons that used to be installed by hand (sealed-secrets, CNPG operator, Kyverno) are now
+# ArgoCD apps too, so a from-scratch redeploy recreates them. Early sync-waves order the foundation:
+#   -50 sealed-secrets (its CRD must exist before ANY committed SealedSecret syncs)
+#   -40 cert-manager · -30 cnpg-operator + tls · -20 kyverno · 0 clusters/apps · 5 kyverno-policies
+# NOTE: unlike the mgmt cluster, games has NO Prometheus operator (metrics go via grafana-agent
+# remote_write), so none of these enable ServiceMonitor/PodMonitor — those CRDs don't exist here.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: games-sealed-secrets
+  namespace: argocd
+  annotations: { argocd.argoproj.io/sync-wave: "-50" }
+spec:
+  project: games
+  source:
+    repoURL: https://bitnami.github.io/sealed-secrets
+    chart: sealed-secrets
+    targetRevision: 2.16.2
+    helm:
+      values: |
+        # fullnameOverride pins the controller Service name to `sealed-secrets-controller`, which the
+        # kubeseal CLI expects by default. The master key the controller adopts on start is persisted
+        # to S3 + re-seeded on rebuild (scripts/sealed-secrets-key.sh) so committed SealedSecrets stay
+        # decryptable across a destroy+recreate — the #1 redeploy-reproducibility guarantee.
+        fullnameOverride: sealed-secrets-controller
+  destination: { name: games, namespace: sealed-secrets }
+  syncPolicy:
+    automated: { prune: true, selfHeal: true }
+    syncOptions: ["CreateNamespace=true", "ServerSideApply=true"]
+---
+# CNPG operator (Helm). Was installed imperatively; now GitOps so a rebuild recreates it BEFORE the
+# games-db / games-db-uat / forge-db Clusters (wave 0) need its CRDs.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: games-cnpg-operator
+  namespace: argocd
+  annotations: { argocd.argoproj.io/sync-wave: "-30" }
+spec:
+  project: games
+  source:
+    repoURL: https://cloudnative-pg.github.io/charts
+    chart: cloudnative-pg
+    targetRevision: 0.22.1
+    helm:
+      values: |
+        # Default operand image for clusters that don't pin spec.imageName (games-db, games-db-uat,
+        # forge-db). MUST be the -system- flavor: CNPG dropped barman-cloud from the standard/minimal
+        # images, which silently breaks WAL archiving + ALL S3 backups ("Missing Barman Cloud
+        # installation in the operand image"). Same pin as the platform operator.
+        config:
+          create: true
+          data:
+            POSTGRES_IMAGE_NAME: ghcr.io/cloudnative-pg/postgresql:17-system-bookworm
+  destination: { name: games, namespace: cnpg-system }
+  syncPolicy:
+    automated: { prune: true, selfHeal: true }
+    syncOptions: ["CreateNamespace=true", "ServerSideApply=true"]
+---
+# Kyverno (Helm) — estate baseline admission control. Slimmed vs the mgmt install: no ServiceMonitor
+# (no Prometheus operator here) and no shipyard-* priorityClasses (they don't exist on this cluster).
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: games-kyverno
+  namespace: argocd
+  annotations: { argocd.argoproj.io/sync-wave: "-20" }
+spec:
+  project: games
+  source:
+    repoURL: https://kyverno.github.io/kyverno
+    chart: kyverno
+    targetRevision: 3.3.4
+    helm:
+      values: |
+        # Admission webhook is on the Pod-create request path — 2 replicas spread across nodes so a
+        # single node loss doesn't fail every Pod create. Modest resources for a 3-node games cluster.
+        admissionController:
+          replicas: 2
+          podDisruptionBudget: { enabled: true, minAvailable: 1 }
+          topologySpreadConstraints:
+            - maxSkew: 1
+              topologyKey: kubernetes.io/hostname
+              whenUnsatisfiable: ScheduleAnyway
+              labelSelector:
+                matchLabels:
+                  app.kubernetes.io/component: admission-controller
+                  app.kubernetes.io/instance: kyverno
+        backgroundController: { replicas: 1 }
+        cleanupController:    { replicas: 1 }
+        reportsController:    { replicas: 1 }
+        # Extend the admission timeout so a slow node doesn't fail every Pod create (chart's knob).
+        config: { webhookTimeoutSeconds: 20 }
+        # The chart's cleanup hooks default to docker.io/bitnami/kubectl, which Bitnami REMOVED from
+        # Docker Hub in 2025 (404 -> hooks ImagePullBackOff -> app Degraded). Repoint to the relocated
+        # bitnamilegacy/ repo (same fix the platform applies).
+        webhooksCleanup:
+          image: { registry: docker.io, repository: bitnamilegacy/kubectl, tag: '1.30.2' }
+        policyReportsCleanup:
+          image: { registry: docker.io, repository: bitnamilegacy/kubectl, tag: '1.30.2' }
+  destination: { name: games, namespace: kyverno }
+  syncPolicy:
+    automated: { prune: true, selfHeal: true }
+    syncOptions: ["CreateNamespace=true", "ServerSideApply=true"]
+---
+# Games Kyverno baseline (runAsNonRoot + drop-ALL + no-privileged + no-default-ns). Enforced on app
+# namespaces; infra namespaces excluded. Synced AFTER kyverno (wave 5). Kyverno rewrites some spec
+# fields server-side once it admits each policy -> ignoreDifferences keeps the app from perma-OutOfSync.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: games-kyverno-policies
+  namespace: argocd
+  annotations: { argocd.argoproj.io/sync-wave: "5" }
+spec:
+  project: games
+  source:
+    repoURL: https://github.com/andusystems-dev-0/andusystems-games
+    targetRevision: main
+    path: apps/kyverno-policies
+    directory: { recurse: false, include: 'baseline.yml' }
+  destination: { name: games, namespace: kyverno }
+  ignoreDifferences:
+    - group: kyverno.io
+      kind: ClusterPolicy
+      jsonPointers:
+        - /spec/admission
+        - /spec/background
+        - /spec/validationFailureAction
+        - /spec/emitWarning
+        - /status
+  syncPolicy:
+    automated: { prune: true, selfHeal: true }
+    syncOptions:
+      - ServerSideApply=true
+      - SkipDryRunOnMissingResource=true
+      - RespectIgnoreDifferences=true
+---
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:

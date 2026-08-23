@@ -8,7 +8,10 @@ spec:
   description: andusystems games estate (spoke cluster on VLAN 70)
   sourceRepos:
     - https://github.com/andusystems-dev-0/andusystems-games
-    - https://charts.jetstack.io   # cert-manager Helm chart (games-cert-manager)
+    - https://charts.jetstack.io                     # cert-manager Helm chart (games-cert-manager)
+    - https://bitnami.github.io/sealed-secrets        # sealed-secrets controller (games-sealed-secrets)
+    - https://cloudnative-pg.github.io/charts         # CNPG operator (games-cnpg-operator)
+    - https://kyverno.github.io/kyverno               # Kyverno (games-kyverno)
   destinations:
     - name: games
       namespace: '*'

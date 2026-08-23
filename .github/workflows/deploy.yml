@@ -75,6 +75,12 @@ jobs:
             ubuntu@10.238.70.41 'sudo cat /etc/rancher/k3s/k3s.yaml' > /tmp/games.kubeconfig
           sed -i 's#127.0.0.1#10.238.70.41#' /tmp/games.kubeconfig
 
+      # Seed the persisted sealed-secrets master key BEFORE ArgoCD installs the controller, so the
+      # controller adopts it and every committed SealedSecret stays decryptable. No-op on the very
+      # first deploy (nothing persisted yet) — see the persist step below. Details in the script.
+      - name: Restore sealed-secrets master key (games cluster)
+        run: KUBECONFIG=/tmp/games.kubeconfig scripts/sealed-secrets-key.sh restore
+
       - name: Register games cluster + apps in ArgoCD (mgmt hub)
         env:
           # The mgmt cluster's CA rotates on every mgmt redeploy and its endpoint IP can drift,
@@ -99,3 +105,10 @@ jobs:
             | kubectl label --local -f - argocd.argoproj.io/secret-type=cluster -o yaml \
             | kubectl apply -f -
           kubectl apply -f apps/argocd/
+
+      # First-write-wins: on the very first deploy the controller generated a fresh key — capture it to
+      # S3 now so future rebuilds can re-seed it. Best-effort (a slow first ArgoCD sync shouldn't fail
+      # an otherwise-good deploy); re-run `scripts/sealed-secrets-key.sh backup` by hand if it's skipped.
+      - name: Persist sealed-secrets master key to S3 (first-write-wins)
+        continue-on-error: true
+        run: KUBECONFIG=/tmp/games.kubeconfig scripts/sealed-secrets-key.sh backup

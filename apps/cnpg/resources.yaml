@@ -1,5 +1,6 @@
-# CloudNativePG clusters. Durability = base backups + WAL to S3 (barman), same bucket + keys as the
-# platform (s3://andusystems-dr/cnpg/<cluster>). Creds come from the sealed cnpg-backup-creds Secret
+# CloudNativePG clusters (operator = games-cnpg-operator Helm app, sync-wave -30). Durability = base
+# backups + WAL to S3 (barman), same bucket + keys as the platform (s3://andusystems-dr/cnpg/<cluster>).
+# Creds come from the sealed cnpg-backup-creds Secret
 # (cluster-wide scope). endpointURL omitted → default AWS S3 endpoint; region via AWS_REGION env.
 # Nightly ScheduledBackups take base backups; WAL archives continuously. See data-model.md.
 apiVersion: postgresql.cnpg.io/v1

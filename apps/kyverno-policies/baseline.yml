@@ -1,0 +1,70 @@
+# Games Kyverno baseline — the estate non-negotiable (AGENTS.md): runAsNonRoot + drop-ALL caps,
+# enforced cluster-wide. Applied AFTER kyverno itself is up (games-kyverno-policies, sync-wave 5).
+#
+# Scope: ENFORCED on the app namespaces (save-api, save-api-uat, spriteforge, web-uat, edge — all of
+# whose workloads already comply). EXCLUDED for infra/system namespaces, whose pods legitimately need
+# root / caps / hostPath (k3s Traefik + CoreDNS in kube-system, MetalLB speaker, etc.). This is a
+# slimmer baseline than the mgmt cluster's (no vCluster/gVisor/cosign — none of that exists here).
+#
+# runAsNonRoot is checked at the POD level: games app manifests set it on spec.securityContext, not
+# per-container. drop-ALL is checked per-container, where the manifests set it. CNPG-managed pods
+# satisfy both (the operator sets a restricted securityContext by default).
+---
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: games-restricted-baseline
+spec:
+  validationFailureAction: Enforce
+  background: true
+  rules:
+    - name: require-run-as-non-root
+      match: { any: [{ resources: { kinds: ["Pod"] } }] }
+      exclude:
+        any:
+          - resources:
+              namespaces: ["kube-system","metallb-system","cnpg-system","sealed-secrets","cert-manager","kyverno","monitoring","argocd"]
+      validate:
+        message: "pods must set spec.securityContext.runAsNonRoot: true"
+        pattern:
+          spec:
+            securityContext:
+              runAsNonRoot: true
+    - name: no-privileged
+      match: { any: [{ resources: { kinds: ["Pod"] } }] }
+      exclude:
+        any:
+          - resources:
+              namespaces: ["kube-system","metallb-system","cnpg-system","sealed-secrets","cert-manager","kyverno","monitoring","argocd"]
+      validate:
+        message: "privileged containers are not allowed"
+        pattern:
+          spec:
+            =(initContainers):
+              - =(securityContext):
+                  =(privileged): "false"
+            containers:
+              - =(securityContext):
+                  =(privileged): "false"
+    - name: drop-all-caps
+      match: { any: [{ resources: { kinds: ["Pod"] } }] }
+      exclude:
+        any:
+          - resources:
+              namespaces: ["kube-system","metallb-system","cnpg-system","sealed-secrets","cert-manager","kyverno","monitoring","argocd"]
+      validate:
+        message: "containers must drop ALL capabilities"
+        pattern:
+          spec:
+            containers:
+              - securityContext:
+                  capabilities:
+                    drop: ["ALL"]
+    - name: forbid-default-namespace
+      match: { any: [{ resources: { kinds: ["Pod","Deployment","StatefulSet","DaemonSet"] } }] }
+      validate:
+        message: "do not deploy into the 'default' namespace"
+        deny:
+          conditions:
+            all:
+              - { key: "{{ request.object.metadata.namespace }}", operator: Equals, value: "default" }

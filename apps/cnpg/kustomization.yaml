@@ -1,6 +1,7 @@
-# CloudNativePG clusters (operator installed separately). Clusters carry explicit namespaces so
-# prod (save-api) and uat (save-api-uat) stay isolated. Backups → S3 (barman), same bucket + keys
-# as the platform. See data-model.md.
+# CloudNativePG clusters. The operator itself is the games-cnpg-operator Helm Application
+# (apps/argocd/applications.yaml, sync-wave -30) so a rebuild recreates it before these clusters.
+# Clusters carry explicit namespaces so prod (save-api) and uat (save-api-uat) stay isolated.
+# Backups → S3 (barman), same bucket + keys as the platform. See data-model.md.
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources:
