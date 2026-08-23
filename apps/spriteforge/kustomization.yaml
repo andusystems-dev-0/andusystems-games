@@ -6,3 +6,4 @@ resources:
   - sealed-forge-db-owner.yaml
   - sealed-spriteforge-secrets.yaml
   - sealed-forgejo-registry.yaml
+  - sealed-cnpg-backup-creds.yaml

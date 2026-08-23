@@ -1,0 +1,18 @@
+---
+apiVersion: bitnami.com/v1alpha1
+kind: SealedSecret
+metadata:
+  annotations:
+    sealedsecrets.bitnami.com/cluster-wide: "true"
+  name: cnpg-backup-creds
+  namespace: spriteforge
+spec:
+  encryptedData:
+    ACCESS_KEY_ID: AgBQTiG1TsMPYXNPigKEqSzcyKA4CLn0/WSgEPkFXNyuq7dyjUvK+PjGZ011FejBbUvaynCf18e27pWGdgmKZUlGrPSWaaMicARr2x0plQrdaL+U+Kp++c+MF5BEJISwvZi/+uPJba3e0pU7ma3uxj/kJCJVIbgHsX2gmJ0eYPP9RESGPgY8xiqgWtGqzUFChnkeulu0frYQBen+CpTIJGzfsN4sE5HJZss5J2Ds3zHVbwT+rFEv7o/VQpRUaDUKMsOiizHF93cuY2D/hZjr/YEwdN1sr7mDnQgeSngFFStsGG8QG+DikevHL9egckce0InyP/l0RzhHGi0vMCqyptlHFDRj51d0q7e98cM18OpHzz/8AnUky1soJoZGiyOlxbinbS3JMwS7dtAIwZZWBihv0XFHHb1lk8VUpzCGF5PUw1sh1XRfd9EzIi95YMq5kkAiKIMIr6UWzpPw2nBcs2tkUYeTa0V2dJuw8H9ciQXP0sk/Oh5epmwJthKpc7OfrY3yv/4SoKhQHDfR+ZZELxRDO8/BedWE5qeJZTHrJXJTcT41VvaSzIVqvd61S75ik8BAl4mKs44TFVXqDxb8njCiKBE+lxtJhj8t4Q//nIqhwNCrfX9eCvzj4BNeWmJulIRzT6NfDJ5VMLsSo7TDa6hmZ9hgXm1K9YHEaVuJafMAHRGarSL3MKOHhVbWBvaows/KVuvmMl4nRV66VjZmrJiy1744Sw==
+    SECRET_ACCESS_KEY: AgBKFjM/JkMb45QBDlpVpkJAxPalPbMW/BZFvnxtEzSCNmZHhdbnaDjqv8SlUES3iMtXHWYEHKpvo4TheaSmq8UO5l++MMFxU+Ff8vn6MqfKyFDUmkKqEkq5czEgnG1HIBIxajVLswhgek7/YZ7C9pZNgSWFcIy4AK9cIzkfEQ1y1RzAw+VoFuXCia+NVAbf5Lu+AWL+N/hrtTtW1InGx4G8GC904lFxtZSreHYEHFzrG3ZckNhi3UewnkuFWMhYT7VXhhxKsObUY+8mdtsS45rY5mjW4hJ/57eQ1A4wRb6c6LgkdnCoowV8KgavmtN6zoo+2BIlfWNbYvioVvBA71YmquLq0T+ocKk/rdpMDex1VTzRncwdWI2XvPxnYmm8Uu7T/JDok6W2SrB/DqE5/IhcXhrzQ6+6sY/kwv41BBab0ChSnPW7ZQ0HyRsY6DsUWLYjQUofbFYlfB0ashZuUfstB7UoH24gOGdjPWmD3wiecyxpqoq9NbBeoswvhpd5ezFEgYOCe1fqG92+m6ATqmyyItlAUyZZskFRnKknstik4NVCmM/Y3XO39j9jVDlX2XR8OvR/behvb7G9983m2zWxM7eOxGNO3T+H5aJen2WIovT9+Cb1tth9YaTUDYbJEt3Q07yqYxRLNEGBkchiSP00wZ0kXZv9lv1Q0AplIJ93bDsjaApzcKW+D/iEBCMWWg2utXxIq1Oc0tl+2Mc9/YLAM+d94RWx6H4Zr0yLGEfRrWCcdbvkQnTe
+  template:
+    metadata:
+      annotations:
+        sealedsecrets.bitnami.com/cluster-wide: "true"
+      name: cnpg-backup-creds
+      namespace: spriteforge

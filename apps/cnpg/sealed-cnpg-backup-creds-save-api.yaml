@@ -1,0 +1,18 @@
+---
+apiVersion: bitnami.com/v1alpha1
+kind: SealedSecret
+metadata:
+  annotations:
+    sealedsecrets.bitnami.com/cluster-wide: "true"
+  name: cnpg-backup-creds
+  namespace: save-api
+spec:
+  encryptedData:
+    ACCESS_KEY_ID: AgDZvdMfRLSJp1F4Wc1Y49W+rZcwNnrFp00DmHavyD174GnkTslBPAVJmyjSKJZeu+lQ3TcnamvEmKc2WqQYMO4RZPYhOotp3/pBG02K7DZPIyvRf16OMp2swlgKBoZpYdHbf3PQKz1K0aib00v+yDDEJNzrT8PGSRiwKWEZe4fHDVbq9S2Z6jiQe+W0oz5bx4c6N6LH/DBdi2wdSaQTjgNcqLTSDe16Pg3ggbjZvJtuHtu6eG3W3XoOiHAG3r0iOAPEvZcpa8tKf5fQjkJ1OUe6GphWk7f4JbWXmLIj7IROcpd6KeZUFDxMG6y/A80ZRjFEX/JdimEjVzusaYTYpiwZQ6SCKSU0pJ2iOoMyXdR9dl6MNQwmFw0Q2hGFdZUutA0krUdsdtnQyI/EvVvSgWYLbh5RkDs5Pf1xZtSgGgokmWZP8RWiJxvXrcas6sPiVQLips65vzEiG088BbxsqpC5iuryvFDbbvjuA29SigTCGX41RmCYYhcNUBWa//3y2KW+jkUxncSd6ekMJYOvvhY3vqBaMIdskTQbEO5KcIJKXPA0rsiOiczRZx6pWZmMb/htka5M+gJQObzjZYTPi+/DWLGFuioPcfOQKpWme6FJdVxFF2zVlk8iP3e4EsnG5Z+DZBZkeUUIXSPK7zo806uXKWmm9gMRwt7aZXp/6155IutU2HeObZvqe+Sfg0pakz5FSdnENCh4ERQVePVO6V80hpeDxA==
+    SECRET_ACCESS_KEY: AgAu6zcaL4HUPF/BghpBTaKIOHh6P823CXxO0J0s0F1miChOdjpjlbO/evDA2lp3bP3xG90JKt8w8B00/93AwoIzS7ST2onbH8cVRM/FHEHqtK3JSu8Ocf3KfBJRHEW12cbPvzX13UeQZYMAgHfVHaz07Gq0hrxY8rt+BisZ6OgG8mYoEOR532V0tu+ohKfYfL4A3suRZWzSXsiauiEYY0ktReTWs3azOTEu8AQc/5Aw4uywnYcufv/s2iknGVFtQO3enBhRbrfRODkl2qdeD+rUNmGMhsRSz+/ZfzjRJx322oOwC5/LuPgL31vYNBQXgkoaJR4pl8Fyd+OPFRSX/LU361+C8GJYU4ODyyYw1jxq71z3Xy3qbNra1wPl5Vt1Qicg+3r7I2CJ0bIN1Ve5kcKts1gZj/fWeMNZoT9WLB3OpEEJZGGB7RAOgu+xWY6GNnK978oC1xenAVrrCEOAqZ3MAvMnDQoW5pKdmWj5k0Z8m59lciPQF/PDysd6V6OjRe9w3ZR2MGYbchMcUO1k9caI6osEvIMRvUBhwz+l9ET3UxCkraRt1J+FOdzgM5v00n/53WRYTwlTtSDXPmFpzPCyzCxKojmmkdqgGaeGlDUzGQq2vSIVW7NNMJPsIpIyZmPk+Takeiz4ksfX13WNKEU3769C4hOFOyriBjYIq6xrt+Sd5DSfXZz48g2ESf+99gBRrsKfUAa8q/ReZyWbHwT6/GNzPfJUFoGYKP7VuqEczy9K/NqTMITA
+  template:
+    metadata:
+      annotations:
+        sealedsecrets.bitnami.com/cluster-wide: "true"
+      name: cnpg-backup-creds
+      namespace: save-api

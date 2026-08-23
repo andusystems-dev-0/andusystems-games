@@ -1,6 +1,9 @@
 # CloudNativePG clusters (operator installed separately). Clusters carry explicit namespaces so
-# prod (save-api) and uat (save-api-uat) stay isolated. Backups → R2 (barman). See data-model.md.
+# prod (save-api) and uat (save-api-uat) stay isolated. Backups → S3 (barman), same bucket + keys
+# as the platform. See data-model.md.
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources:
   - resources.yaml
+  - sealed-cnpg-backup-creds-save-api.yaml
+  - sealed-cnpg-backup-creds-uat.yaml
