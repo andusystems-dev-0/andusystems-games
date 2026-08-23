@@ -34,13 +34,16 @@ spec:
       containers:
         - name: agent
           image: grafana/agent:v0.44.2
-          # Static mode: -config.file (the agent.yaml is static-format). The flow-mode `run`
-          # subcommand errored with "-config.file flag required" + can't write its WAL under a
-          # read-only root, so it crash-looped.
+          # The agent.yaml is static-format, so force static mode (v0.44 defaults to flow, where
+          # -config.file is ignored → "flag required"). WAL → /data, seed/temp → /tmp; both must be
+          # writable emptyDirs under the read-only root.
+          env:
+            - { name: AGENT_MODE, value: static }
           args: ["-config.file=/etc/agent/agent.yaml", "-server.http.address=0.0.0.0:12345"]
           volumeMounts:
             - { name: config, mountPath: /etc/agent }
             - { name: data, mountPath: /data }
+            - { name: tmp, mountPath: /tmp }
           securityContext:
             allowPrivilegeEscalation: false
             readOnlyRootFilesystem: true
@@ -49,4 +52,6 @@ spec:
         - name: config
           configMap: { name: grafana-agent }
         - name: data
+          emptyDir: {}
+        - name: tmp
           emptyDir: {}
