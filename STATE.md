@@ -111,12 +111,16 @@ Nothing operates the cluster from a devbox. `Makefile` targets are thin `gh work
 → `ops.yml` (runs on the self-hosted runner, fetches kubeconfig, runs `scripts/*.sh` there).
 Declarative state is GitOps (ArgoCD reconciles `apps/*`). Also triggerable from the Actions tab.
 
-### Known gaps flagged this session
-- `games-db`/`games-db-uat` have **no `bootstrap.recovery`** → a plain rebuild returns EMPTY DBs.
-  Restore is a **GitOps git edit** to `apps/cnpg/resources.yaml` (bump serverName generation + add the
-  recovery stanza from `scripts/cnpg-recovery.template.yaml`), **not** a `kubectl apply` (selfHeal would
-  revert it). Decide whether `redeploy.yml` should stamp it automatically (needs a live test —
-  first-deploy chicken-and-egg). See `docs/runbook.md`.
+### Core loops — verified 2026-08-23
+- **Backup loop ✅** WAL archiving + nightly base + on-demand + sealed-key, all three DBs → S3 (checked
+  live: ContinuousArchiving=True, firstRecoverabilityPoint/lastSuccessfulBackup set, on-demand completes).
+- **Restore ✅** `make dr-drill` (via `ops.yml`) passes: genesis→g1, recover g1→g2, write, recover g2→g3,
+  row counts match. Proves the generation-bump pattern + repeatability.
+- **Redeploy retains DBs ✅ (built)** `redeploy.yml` self-commits a recovery spec (recover latest S3
+  generation → archive fresh one) via `scripts/cnpg-recovery-prepare.sh`, then seeds a base backup in the
+  new generation. Ultimate proof is a real `redeploy CONFIRM=DESTROY` (de-risked; live clusters untouched
+  until then). CNPG constraint that shaped this: can't archive to a non-empty serverName, so generations
+  advance per rebuild; can't flip a live cluster's bootstrap, so recovery only lands on fresh clusters.
 - ~~Operators hand-installed on the live cluster; ArgoCD must adopt not duplicate~~ **RESOLVED
   2026-08-23:** the first `deploy.yml` duplicated (sealed-secrets was raw-manifest in kube-system, cnpg
   was upstream manifests) — remediated interactively (canonical sealed-secrets key migrated into ns

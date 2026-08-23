@@ -1,6 +1,8 @@
 # games-redeploy — DESTROY + recreate the games cluster, then converge + re-register. Durability is
-# off-cluster: ArgoCD reconciles apps/ and CNPG restores games-db/games-db-uat from the S3 barman
-# backups (s3://andusystems-dr/cnpg/*). The persisted sealed-secrets master key is re-seeded first so
+# off-cluster (S3). DBs are RESTORED on rebuild: before destroying, we rewrite apps/cnpg + apps/spriteforge
+# so each Cluster bootstraps from its latest S3 barman generation and archives to a fresh one (CNPG won't
+# archive to a non-empty serverName — validated by scripts/dr-drill.sh), and commit that so ArgoCD applies
+# it (Option 1: self-committing redeploy). The persisted sealed-secrets master key is re-seeded first so
 # the committed SealedSecrets stay decryptable. DESTROY-gated.
 name: games-redeploy
 
@@ -13,7 +15,7 @@ on:
         default: ''
 
 permissions:
-  contents: read
+  contents: write   # self-commit the CNPG recovery spec (generation bump) before recreating
 
 concurrency:
   group: games-deploy   # shares the deploy lock — never run both at once
@@ -62,6 +64,26 @@ jobs:
           printf '%s\n' "$KEY_BODY" > "$SSH_KEY_PATH"; chmod 600 "$SSH_KEY_PATH"
           ssh-keygen -y -f "$SSH_KEY_PATH" >/dev/null || { echo "::error::PROXMOX_SSH_KEY invalid"; exit 1; }
           printf '%s\n' "$PUB_BODY" > "${SSH_KEY_PATH}.pub"
+
+      # BEFORE destroying anything: point the Cluster specs at recovery from the latest S3 generation
+      # (archiving to a fresh one) and commit, so the rebuilt clusters restore their data instead of
+      # coming up empty. Runs first (S3-only, no cluster needed) — if it fails, nothing is destroyed yet.
+      - name: Prepare CNPG recovery spec + self-commit
+        run: |
+          set -euo pipefail
+          if ! command -v yq >/dev/null; then
+            curl -fsSLo /tmp/yq https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64
+            sudo install -m 0755 /tmp/yq /usr/local/bin/yq
+          fi
+          scripts/cnpg-recovery-prepare.sh
+          if git diff --quiet -- apps/cnpg/resources.yaml apps/spriteforge/resources.yaml; then
+            echo "CNPG specs already point at the current recovery generation — nothing to commit"; exit 0
+          fi
+          git config user.name "games-bot"
+          git config user.email "games-bot@andusystems.com"
+          git add apps/cnpg/resources.yaml apps/spriteforge/resources.yaml
+          git commit -m "redeploy: CNPG recover from S3 (generation bump) $(date -u +%FT%TZ)"
+          git push origin HEAD:main
 
       - name: Tofu destroy + recreate
         working-directory: terraform
@@ -112,3 +134,19 @@ jobs:
             | kubectl label --local -f - argocd.argoproj.io/secret-type=cluster -o yaml \
             | kubectl apply -f -
           kubectl apply -f apps/argocd/
+
+      # After ArgoCD recreates + recovers the clusters, take an immediate base backup into the NEW
+      # generation so it is independently recoverable before the nightly runs — otherwise a back-to-back
+      # redeploy would fall back to the previous generation and lose the interim writes. Best-effort.
+      - name: Seed base backup in the new generation
+        continue-on-error: true
+        run: |
+          set -euo pipefail
+          export KUBECONFIG=/tmp/games.kubeconfig
+          for pair in "games-db save-api" "games-db-uat save-api-uat" "forge-db spriteforge"; do
+            set -- $pair
+            for _ in $(seq 1 60); do kubectl -n "$2" get cluster "$1" >/dev/null 2>&1 && break; sleep 15; done
+            kubectl -n "$2" wait --for=condition=Ready cluster/"$1" --timeout=20m \
+              || echo "::warning::$1 not Ready in time — run 'make backup' once it recovers"
+          done
+          scripts/cnpg-backup.sh || echo "::warning::seed backup failed — run 'make backup' after recovery"

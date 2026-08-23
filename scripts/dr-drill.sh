@@ -1,16 +1,15 @@
 #!/usr/bin/env bash
-# End-to-end CNPG DR drill for the games cluster — proves the EXACT redeploy contract used by
-# apps/cnpg: a cluster can be destroyed and rebuilt in place, recovering from its S3 barman backups
-# on the SAME serverName and then continuing to archive to it. Safe: everything lives in a throwaway
-# namespace and never touches games-db / games-db-uat / forge-db.
+# End-to-end CNPG DR drill — proves the EXACT redeploy contract used by redeploy.yml + apps/cnpg: a
+# cluster can be destroyed and rebuilt, recovering from its latest S3 barman generation and archiving
+# to a FRESH one (CNPG refuses to archive to a serverName that already has WAL, so each rebuild advances
+# the generation). Safe: everything lives in a throwaway namespace, never touches the real DBs.
 #
-# Phases (mirroring genesis → nightly backup → redeploy → rebuild → keep running → redeploy again):
-#   1. genesis cluster (initdb) archiving to serverName S; seed rows; base backup to S.
-#   2. DESTROY it (as `redeploy.yml` does), rebuild in place: bootstrap.recovery from S AND archive to S.
-#      Verify the rows came back.
-#   3. Keep running: insert more rows, take ANOTHER backup to S — proves continue-archiving to the same
-#      store works (no serverName collision) after a recovery.
-#   4. DESTROY + rebuild AGAIN — verify the post-recovery writes (step 3) are themselves recoverable.
+# Phases (mirroring genesis → backup → redeploy → rebuild → keep running → redeploy again):
+#   1. genesis cluster (initdb) archiving to gen g1; seed 1000 rows; base backup to g1.
+#   2. DESTROY, rebuild: recover from g1 -> archive to fresh g2. Verify 1000 rows.
+#   3. Keep running: +500 rows (1500), base backup to g2.
+#   4. DESTROY, rebuild AGAIN: recover from g2 -> archive to fresh g3. Verify 1500 (post-recovery writes
+#      are themselves recoverable — the generation ping-pong is repeatable).
 #
 # Requires: KUBECONFIG at the games cluster (CNPG operator installed), AWS creds in env, andusystems-dr
 # bucket. Run via .github/workflows/ops.yml (op=dr-drill). Region us-east-1 (bucket default).

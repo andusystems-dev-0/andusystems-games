@@ -55,24 +55,27 @@ A fresh cluster must come back with the same identity and decryptable secrets, f
 | Command | What |
 |---|---|
 | `make backup` | On-demand CNPG base backup of all three DBs → S3 (`s3://andusystems-dr/cnpg/*`). Nightly is a scheduled CNPG backup. |
-| `make restore` | Prints the restore-from-S3 procedure (see below). |
-| `make dr-drill` | **Safe** canary: stand up a throwaway CNPG, back up, recover, verify row counts (`scripts/dr-drill.sh`). Run monthly. |
+| `make restore` | Prints the manual restore-into-a-running-cluster procedure (see below). Full-cluster restore is automatic on `redeploy`. |
+| `make dr-drill` | **Safe** canary: genesis → backup → recover → continue → recover again, verify row counts (`scripts/dr-drill.sh`). Run monthly. |
 
-### Restore from S3 (the real recovery path — GitOps)
-> ⚠️ **Gap to close:** `apps/cnpg/resources.yaml` creates `games-db` / `games-db-uat` as **empty**
-> clusters (no `bootstrap.recovery`), so a plain destroy+recreate comes back with **no data**.
->
-> Restore is a **git edit**, not a `kubectl apply` — `games-cnpg` has `selfHeal: true`, so an
-> out-of-band recovery Cluster is reverted to the git spec. On a branch, edit the target Cluster in
-> `apps/cnpg/resources.yaml`: bump its `serverName` generation (`games-db-g1` → `games-db-g2`) and add
-> the `spec.bootstrap.recovery` + `externalClusters` stanzas that point at the OLD generation (copy from
-> `scripts/cnpg-recovery.template.yaml`). PR + merge → ArgoCD recreates the Cluster and replays base+WAL
-> from S3. `make restore` prints this procedure.
->
-> `make dr-drill` proves these exact mechanics without touching prod (throwaway namespace, not
-> ArgoCD-managed, so no selfHeal conflict). Backup **age** is alerted in mgmt Grafana. (Follow-up:
-> decide whether `redeploy.yml` should stamp the recovery stanza automatically so a rebuild restores
-> data — needs a live test to avoid a first-deploy chicken-and-egg.)
+### Redeploy restores DBs automatically (the redeploy contract)
+`redeploy.yml` no longer comes back empty. Before destroying anything it runs
+`scripts/cnpg-recovery-prepare.sh`, which per DB finds the **latest S3 barman generation that has a base
+backup** (`FROM=g<N>`), rewrites the Cluster in `apps/cnpg` / `apps/spriteforge` to
+`bootstrap.recovery` from `FROM` and archive to a **fresh** `TO=g<N+1>`, and commits that (self-committing
+redeploy). ArgoCD then recreates the clusters and replays base+WAL from S3. Why a *fresh* generation:
+**CNPG refuses to archive to a serverName that already has WAL** ("expected empty archive" — even
+`skipEmptyWalArchiveCheck` doesn't bypass it at recovery time), so each rebuild advances the generation.
+After recovery the workflow takes an immediate base backup into the new generation so a back-to-back
+redeploy can't fall back and lose interim writes. Proven end-to-end by `make dr-drill` (recover g1→g2,
+write, recover g2→g3, counts match). The live clusters stay `initdb`+ArgoCD-synced until a redeploy (the
+recovery spec only lands on the fresh clusters, avoiding the "too many bootstrap types" webhook rejection).
+
+### Manual restore into a fresh cluster (rare — outside a redeploy)
+`make restore` prints the git-edit procedure (bump `serverName` generation + add the
+`bootstrap.recovery`/`externalClusters` stanzas from `scripts/cnpg-recovery.template.yaml`, PR + merge);
+`games-cnpg` has `selfHeal: true`, so it must be a git edit, not an out-of-band `kubectl apply`. Backup
+**age** is alerted in mgmt Grafana.
 
 ## Access recap
 - **Public/prod:** Cloudflare — `<slug>.games…` (R2/Pages), `api.games…` (Tunnel). No open ports.
