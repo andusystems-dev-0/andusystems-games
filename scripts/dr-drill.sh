@@ -22,7 +22,8 @@ set -euo pipefail
 
 DR_BUCKET=${DR_BUCKET:-andusystems-dr}
 DRILL_STORE=${DRILL_STORE:-dr-drill}
-SRV="drill-$(date +%s)"                 # unique serverName so a re-run never reads stale backups
+BASE="drill-$(date +%s)"                 # unique per run so a re-run never reads stale backups
+SRV1="${BASE}-g1"; SRV2="${BASE}-g2"; SRV3="${BASE}-g3"   # generations: CNPG must archive to an EMPTY store
 NS="dr-drill-$(date +%s)"
 DEST="s3://${DR_BUCKET}/cnpg/${DRILL_STORE}"
 K() { kubectl -n "$NS" "$@"; }
@@ -36,12 +37,11 @@ K create secret generic cnpg-backup-creds \
   --from-literal=SECRET_ACCESS_KEY="$AWS_SECRET_ACCESS_KEY" \
   --dry-run=client -o yaml | K apply -f -
 
-# barmanObjectStore fields reused for backup + externalCluster (same serverName = recover-and-continue).
-# $1 = leading indent so it nests correctly under backup.barmanObjectStore (6) vs externalClusters (8).
+# barmanObjectStore fields. $1 = leading indent (backup=6, externalClusters=8), $2 = serverName.
 store_block() {
-  local i="$1"
+  local i="$1" sn="$2"
   cat <<EOF
-${i}serverName: ${SRV}
+${i}serverName: ${sn}
 ${i}destinationPath: ${DEST}
 ${i}s3Credentials:
 ${i}  accessKeyId:     { name: cnpg-backup-creds, key: ACCESS_KEY_ID }
@@ -51,7 +51,7 @@ ${i}data: { compression: gzip }
 EOF
 }
 
-genesis_cluster() {
+genesis_cluster() {   # $1 = archive serverName
   cat <<EOF | K apply -f -
 apiVersion: postgresql.cnpg.io/v1
 kind: Cluster
@@ -62,11 +62,11 @@ spec:
   env: [ { name: AWS_REGION, value: "us-east-1" } ]
   backup:
     barmanObjectStore:
-$(store_block "      ")
+$(store_block "      " "$1")
 EOF
 }
 
-recover_cluster() {   # rebuild in place: recover from S, then continue archiving to S
+recover_cluster() {   # $1 = recover-FROM serverName (populated), $2 = archive-TO serverName (must be EMPTY)
   cat <<EOF | K apply -f -
 apiVersion: postgresql.cnpg.io/v1
 kind: Cluster
@@ -77,13 +77,13 @@ spec:
   env: [ { name: AWS_REGION, value: "us-east-1" } ]
   backup:
     barmanObjectStore:
-$(store_block "      ")
+$(store_block "      " "$2")
   bootstrap:
     recovery: { source: origin }
   externalClusters:
     - name: origin
       barmanObjectStore:
-$(store_block "        ")
+$(store_block "        " "$1")
 EOF
 }
 
@@ -105,33 +105,33 @@ EOF
 
 count() { K exec drill-1 -- psql -At -c "select count(*) from canary;" 2>/dev/null; }
 
-echo "== PHASE 1: genesis (initdb) + seed + base backup =="
-genesis_cluster
+echo "== PHASE 1: genesis (initdb) archiving to $SRV1 + seed + base backup =="
+genesis_cluster "$SRV1"
 K wait --for=condition=Ready cluster/drill --timeout=10m
 K exec drill-1 -- psql -c "create table canary(i int); insert into canary select generate_series(1,1000);"
 echo "    seeded: $(count) rows"
 backup_now drill-backup-1
 
-echo "== PHASE 2: DESTROY + rebuild-in-place (recover from same serverName) =="
+echo "== PHASE 2: DESTROY + rebuild (recover from $SRV1 -> archive to fresh $SRV2) =="
 K delete cluster drill --timeout=5m
-recover_cluster
+recover_cluster "$SRV1" "$SRV2"
 K wait --for=condition=Ready cluster/drill --timeout=15m
 C2=$(count); echo "    after rebuild: $C2 rows (want 1000)"
 [ "$C2" = "1000" ] || { echo "✗ FAIL: recovery did not restore rows"; exit 1; }
 
-echo "== PHASE 3: keep running — write more + backup to the SAME store (continue-archiving) =="
+echo "== PHASE 3: keep running — write more + base backup to the new generation $SRV2 =="
 K exec drill-1 -- psql -c "insert into canary select generate_series(1001,1500);"
 C3=$(count); echo "    after more writes: $C3 rows (want 1500)"
-backup_now drill-backup-2   # proves archiving continues on the same serverName post-recovery
+backup_now drill-backup-2   # base backup on the recovered timeline, to the new generation
 
-echo "== PHASE 4: DESTROY + rebuild AGAIN — post-recovery writes must also be recoverable =="
+echo "== PHASE 4: DESTROY + rebuild AGAIN (recover from $SRV2 -> archive to fresh $SRV3) =="
 K delete cluster drill --timeout=5m
-recover_cluster
+recover_cluster "$SRV2" "$SRV3"
 K wait --for=condition=Ready cluster/drill --timeout=15m
 C4=$(count); echo "    after 2nd rebuild: $C4 rows (want 1500)"
 
 if [ "$C4" = "1500" ]; then
-  echo "✓ DR DRILL PASSED — rebuild-in-place recovers AND continues archiving on the same serverName."
+  echo "✓ DR DRILL PASSED — recover-from-generation-N -> archive-to-fresh-N+1, repeatable across rebuilds."
 else
   echo "✗ DR DRILL FAILED — expected 1500 after the 2nd rebuild, got $C4"; exit 1
 fi
