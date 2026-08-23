@@ -12,10 +12,11 @@ on:
         type: choice
         required: true
         options:
-          - sealed-key-backup     # persist the live sealed-secrets master key -> S3 (the cutover step)
-          - sealed-key-restore    # re-seed the sealed-secrets key onto the cluster
-          - cnpg-backup           # on-demand base backup of all three DBs -> S3
-          - dr-drill              # safe canary: backup + recover + verify row counts (throwaway ns)
+          - sealed-key-backup       # persist the live sealed-secrets master key -> S3 (first-write-wins)
+          - sealed-key-backup-force # OVERWRITE the S3 copy with the live key (use after a key cutover/rotation)
+          - sealed-key-restore      # re-seed the sealed-secrets key onto the cluster
+          - cnpg-backup             # on-demand base backup of all three DBs -> S3
+          - dr-drill                # safe canary: backup + recover + verify row counts (throwaway ns)
 
 permissions:
   contents: read
@@ -71,9 +72,10 @@ jobs:
           set -euo pipefail
           export KUBECONFIG=/tmp/games.kubeconfig
           case "${{ inputs.op }}" in
-            sealed-key-backup)  scripts/sealed-secrets-key.sh backup ;;
-            sealed-key-restore) scripts/sealed-secrets-key.sh restore ;;
-            cnpg-backup)        scripts/cnpg-backup.sh ;;
-            dr-drill)           scripts/dr-drill.sh ;;
+            sealed-key-backup)       scripts/sealed-secrets-key.sh backup ;;
+            sealed-key-backup-force) scripts/sealed-secrets-key.sh backup --force ;;
+            sealed-key-restore)      scripts/sealed-secrets-key.sh restore ;;
+            cnpg-backup)             scripts/cnpg-backup.sh ;;
+            dr-drill)                scripts/dr-drill.sh ;;
             *) echo "::error::unknown op '${{ inputs.op }}'"; exit 2 ;;
           esac
