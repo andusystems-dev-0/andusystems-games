@@ -117,5 +117,8 @@ Declarative state is GitOps (ArgoCD reconciles `apps/*`). Also triggerable from 
   recovery stanza from `scripts/cnpg-recovery.template.yaml`), **not** a `kubectl apply` (selfHeal would
   revert it). Decide whether `redeploy.yml` should stamp it automatically (needs a live test —
   first-deploy chicken-and-egg). See `docs/runbook.md`.
-- Operators were hand-installed on the **live** cluster; ArgoCD must **adopt** (not duplicate) them —
-  `make backup-sealed-key` first, confirm chart/namespace match (§1).
+- ~~Operators hand-installed on the live cluster; ArgoCD must adopt not duplicate~~ **RESOLVED
+  2026-08-23:** the first `deploy.yml` duplicated (sealed-secrets was raw-manifest in kube-system, cnpg
+  was upstream manifests) — remediated interactively (canonical sealed-secrets key migrated into ns
+  `sealed-secrets`, duplicates removed, cnpg rolled to 1.24.1, canonical key force-backed-up to S3). See
+  `docs/runbook.md` cutover note. A fresh redeploy won't recur (no hand-installs on a clean cluster).

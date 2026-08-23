@@ -35,11 +35,21 @@ A fresh cluster must come back with the same identity and decryptable secrets, f
 - **Postgres restores from S3.** CNPG replays base backup + WAL from `s3://andusystems-dr/cnpg/*`.
 - **Stable JWT keys** (prod + UAT) survive because their SealedSecrets are decryptable again (above).
 
-> **First-time / live-cluster cutover:** the add-ons were originally installed by hand. Before letting
-> ArgoCD adopt them, run **`make backup-sealed-key`** (triggers `ops.yml`) so the current key reaches S3
-> (a normal `deploy.yml` run also does this via the "Persist" step). Confirm the live sealed-secrets
-> install is the bitnami chart in ns `sealed-secrets` (matching the app) so ArgoCD adopts rather than
-> duplicates it.
+> **Live-cluster cutover (DONE 2026-08-23):** the add-ons were originally hand-installed in places the
+> GitOps Helm apps don't match — sealed-secrets as raw manifests in **kube-system**, cnpg via **upstream
+> manifests** (`cnpg-controller-manager`). So the first `deploy.yml` **duplicated** rather than adopted:
+> a second sealed-secrets controller came up in ns `sealed-secrets` with a fresh key (all SealedSecrets
+> went "no key could decrypt"), a second cnpg operator ran, and the best-effort "Persist" step pushed the
+> *wrong* key to S3. Remediation (one-time, interactive):
+> 1. Copied the canonical key (`kube-system/…keypmqtz`) into ns `sealed-secrets`, dropped the fresh key,
+>    restarted the controller → 12/12 SealedSecrets SYNCED again; deleted the kube-system controller.
+> 2. Deleted the upstream `cnpg-controller-manager` (the Helm operator already owned the webhooks/service);
+>    the Helm operator rolled all three DBs 1.24.0→1.24.1 (HA, no data loss).
+> 3. `ops.yml op=sealed-key-backup-force` → the **canonical** key is now in S3 (redeploy-safe).
+>
+> A truly fresh redeploy won't hit this (no hand-installs exist; `redeploy.yml` re-seeds the S3 key before
+> the controller starts). Harmless orphans left in kube-system (dead `sealed-secrets-controller` svc/sa +
+> a break-glass copy of the key) — optional cleanup.
 
 ## Data / backups
 | Command | What |
