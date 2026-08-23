@@ -116,11 +116,19 @@ Declarative state is GitOps (ArgoCD reconciles `apps/*`). Also triggerable from 
   live: ContinuousArchiving=True, firstRecoverabilityPoint/lastSuccessfulBackup set, on-demand completes).
 - **Restore ✅** `make dr-drill` (via `ops.yml`) passes: genesis→g1, recover g1→g2, write, recover g2→g3,
   row counts match. Proves the generation-bump pattern + repeatability.
-- **Redeploy retains DBs ✅ (built)** `redeploy.yml` self-commits a recovery spec (recover latest S3
-  generation → archive fresh one) via `scripts/cnpg-recovery-prepare.sh`, then seeds a base backup in the
-  new generation. Ultimate proof is a real `redeploy CONFIRM=DESTROY` (de-risked; live clusters untouched
-  until then). CNPG constraint that shaped this: can't archive to a non-empty serverName, so generations
-  advance per rebuild; can't flip a live cluster's bootstrap, so recovery only lands on fresh clusters.
+- **Redeploy retains DBs ✅ PROVEN (real destroy+recreate 2026-08-23)** A full `redeploy CONFIRM=DESTROY`
+  destroyed + rebuilt the cluster; all three DBs recovered from S3 and **unique marker rows planted before
+  the destroy survived** (games-db/games-db-uat/forge-db), serverNames advanced g1→g2 + g2 base backups
+  seeded, save-api prod+uat + spriteforge came back healthy (app-user auth reconciled). Two bugs found +
+  fixed live (both committed, so the next redeploy is clean first-try):
+    1. **SSH race** — ansible ran before fresh VMs booted sshd ("connection refused"); added a wait-for-SSH
+       step to deploy.yml + redeploy.yml.
+    2. **PG major mismatch** — the DBs are **PG16** but the operator defaulted new operands to PG17 and the
+       Cluster specs didn't pin `imageName`, so recovery failed "data initialized by PG16, not compatible
+       with 17". Pinned `imageName: postgresql:16-system-bookworm` on all three clusters + operator default.
+       (The dr-drill missed it because its genesis+recovery were both PG17.)
+  CNPG constraints that shaped the design: can't archive to a non-empty serverName (generations advance per
+  rebuild); can't change a live cluster's bootstrap or major version (recovery only lands on fresh clusters).
 - **Monitoring ✅** grafana-agent → mgmt Prometheus remote-write receiver (xcluster-gateway LB,
   cluster=games). Fixed a missing-RBAC gap (agent ran as default SA → 0 targets); now scraping +
   remote-writing with 0 failures (save-api prod+uat + annotation-based pods).
