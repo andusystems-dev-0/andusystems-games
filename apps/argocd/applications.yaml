@@ -122,7 +122,7 @@ spec:
     repoURL: https://github.com/andusystems-dev-0/andusystems-games
     targetRevision: main
     path: apps/kyverno-policies
-    directory: { recurse: false, include: 'baseline.yml' }
+    directory: { recurse: false, include: '{baseline,registry}.yml' }
   destination: { name: games, namespace: kyverno }
   ignoreDifferences:
     - group: kyverno.io

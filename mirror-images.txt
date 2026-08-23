@@ -1,0 +1,43 @@
+# Public images to mirror into the private Forgejo registry (see docs/registry-audit.md).
+# .github/workflows/mirror-images.yml crane-copies each into:
+#   forgejo.andusystems.com/andusystems/mirror/<source-path-without-registry-host>:<tag>
+# then the manifests/Dockerfiles/Helm values repoint to the mirror. One image per line; # comments ok.
+# Operator/Helm + k3s images below are enumerated from the pinned chart/k3s versions in
+# apps/argocd/applications.yaml + ansible/k3s.yml — re-run `helm template` / `k3s ... --images` if bumped.
+
+# --- Dockerfile bases (save-api + spriteforge) ---
+golang:1.25
+golang:1.24-bookworm
+node:22-bookworm-slim
+gcr.io/distroless/static:nonroot
+
+# --- app runtime images ---
+fosrl/newt:latest
+grafana/agent:v0.44.2
+nginxinc/nginx-unprivileged:stable
+
+# --- CNPG (operator chart cloudnative-pg 0.22.1 + operand) ---
+ghcr.io/cloudnative-pg/cloudnative-pg:1.24.1
+ghcr.io/cloudnative-pg/postgresql:16-system-bookworm
+
+# --- Kyverno (chart 3.3.4) ---
+ghcr.io/kyverno/kyverno:v1.13.4
+ghcr.io/kyverno/kyvernopre:v1.13.4
+ghcr.io/kyverno/background-controller:v1.13.4
+ghcr.io/kyverno/cleanup-controller:v1.13.4
+ghcr.io/kyverno/reports-controller:v1.13.4
+docker.io/bitnamilegacy/kubectl:1.30.2
+
+# --- cert-manager (chart v1.16.2) ---
+quay.io/jetstack/cert-manager-controller:v1.16.2
+quay.io/jetstack/cert-manager-webhook:v1.16.2
+quay.io/jetstack/cert-manager-cainjector:v1.16.2
+quay.io/jetstack/cert-manager-acmesolver:v1.16.2
+quay.io/jetstack/cert-manager-startupapicheck:v1.16.2
+
+# --- sealed-secrets (chart 2.16.2) ---
+docker.io/bitnami/sealed-secrets-controller:0.27.1
+
+# --- MetalLB (ansible v0.14.8) ---
+quay.io/metallb/controller:v0.14.8
+quay.io/metallb/speaker:v0.14.8

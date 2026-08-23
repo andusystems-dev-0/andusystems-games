@@ -1,0 +1,61 @@
+# Stage 1 of the "no public images" migration: mirror the public images in mirror-images.txt into the
+# private Forgejo registry so the manifests/Dockerfiles/Helm values can repoint to Forgejo. NON-breaking
+# (only populates the registry). GitHub Actions on the self-hosted runner (on the mgmt network → can reach
+# both public registries and the private Forgejo). crane is a static binary, not a container image.
+#
+# Requires GH secrets FORGEJO_USER + FORGEJO_TOKEN (a Forgejo bot with package:write on andusystems/*).
+# Mirror path: forgejo.andusystems.com/andusystems/mirror/<source-without-registry-host>:<tag>.
+name: mirror-images
+
+on:
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: games-mirror
+  cancel-in-progress: false
+
+jobs:
+  mirror:
+    runs-on: [self-hosted, linux, andusystems-mgmt]
+    timeout-minutes: 45
+    env:
+      REG: forgejo.andusystems.com
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: install crane (static binary — not a container image)
+        run: |
+          set -euo pipefail
+          if ! command -v crane >/dev/null; then
+            curl -fsSL https://github.com/google/go-containerregistry/releases/download/v0.20.2/go-containerregistry_Linux_x86_64.tar.gz -o /tmp/crane.tgz
+            sudo tar -xzf /tmp/crane.tgz -C /usr/local/bin crane
+          fi
+          crane version
+
+      - name: login to Forgejo
+        env:
+          FORGEJO_USER: ${{ secrets.FORGEJO_USER }}
+          FORGEJO_TOKEN: ${{ secrets.FORGEJO_TOKEN }}
+        run: |
+          set -euo pipefail
+          [ -n "${FORGEJO_USER:-}" ] && [ -n "${FORGEJO_TOKEN:-}" ] || { echo "::error::FORGEJO_USER/FORGEJO_TOKEN not set — create a Forgejo bot token (package:write) and add them as GH secrets"; exit 1; }
+          echo "$FORGEJO_TOKEN" | crane auth login "$REG" -u "$FORGEJO_USER" --password-stdin
+
+      - name: mirror each image (public -> Forgejo)
+        run: |
+          set -euo pipefail
+          fail=0
+          while read -r src; do
+            src="${src%%#*}"; src="$(echo "$src" | xargs)"   # strip comments + whitespace
+            [ -z "$src" ] && continue
+            # dest = mirror/<source path minus a leading "host.tld/">
+            path="$(echo "$src" | sed -E 's#^[^/]+\.[^/]+/##')"
+            dest="$REG/andusystems/mirror/$path"
+            echo "==> $src  ->  $dest"
+            crane copy --insecure "$src" "$dest" || { echo "::warning::failed $src"; fail=1; }
+          done < mirror-images.txt
+          [ "$fail" = 0 ] || { echo "::error::one or more mirrors failed"; exit 1; }
+          echo "mirror complete"
