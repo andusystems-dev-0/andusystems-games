@@ -95,15 +95,28 @@ The cluster + app stack are live. The entire **no-keys audit backlog is now buil
 **Activate (operator):** run `deploy.yml` (create-or-keep) to (a) create the new ArgoCD apps and
 (b) persist the sealed-secrets key; do the one-time cutover (§1); then verify a real redeploy.
 
-**Remaining — key/account-gated (send keys → I build the slice):**
-- **fal.ai** `FAL_KEY` → real SpriteForge generation (S3 store already persists whatever it returns).
-- **Stripe** account + keys → payments schema + checkout + entitlements + webhook (Phase 7).
-- **Apple Developer + Google Play** → store submission; **macOS build path** (CONFIRM) for iOS (Phase 6).
-- **Pangolin resources** (manual UI) for `uat-api` / `uat.*` / `spriteforge` → capture Newt creds as sealed secrets.
+**Done since (pushed to main, both repos):**
+- ✅ **fal.ai key sealed** into `spriteforge-secrets` (`FAL_KEY` + `PROVIDER=fal`).
+- ✅ **SpriteForge Tier-1 skeletal pipeline** — segment (SAM2/fal) → auto-rig → presets → export
+  (Spine JSON + Phaser atlas → S3); backend (`internal/rig`, `0002_rigging.sql`) + wired UI. `go build`
+  + `vite build` + `svelte-check` clean.
+- ✅ **Mobile Fastlane pipeline** — `mobile/shell/fastlane/{Fastfile,Appfile}` + Gemfile, beta/release
+  lanes for both platforms, store metadata generated from `game.json`; `mobile-package.yml` uses the lanes.
+
+**Remaining — key/account-gated (mostly deferred to the app-store move):**
+- **Stripe** account + keys → payments (Phase 7); a placeholder is fine at first (not monetized initially).
+- **Apple Developer + Google Play** + **macOS runner** → mobile store submission (pipeline is ready).
+- **Pangolin resources** (manual UI) for `uat-api` / `uat.*` / `spriteforge` → Newt creds as sealed secrets.
 - **Cloudflare** prod web DNS/records per game + (optional) Tunnel for the public save-api.
 
-**Bigger builds (no keys, larger):** SpriteForge Rig&Animate + Export-to-S3 backends; mobile Fastlane
-pipeline; the real idlebartender game (tic-tac-toe placeholder today); Phase 9 end-to-end sign-off.
+**Next build: the real idlebartender game** (tic-tac-toe placeholder today). Art depends on SpriteForge —
+which needs its backend deployed (CI image build + restart) and the fal integration verified live before
+it can generate assets. Decision: placeholder-art game now + swap SpriteForge art later, or deploy+verify
+SpriteForge first.
+
+**Deploy note:** SpriteForge backend changes are committed but not live — the `spriteforge:latest` image
+must be rebuilt (Forgejo CI) + the deployment restarted (or next redeploy) to pick up the rig endpoints +
+the fal key. Migration `0002` applies on the backend's next start.
 
 ### Ops model: GHA + GitOps only
 Nothing operates the cluster from a devbox. `Makefile` targets are thin `gh workflow run` triggers:
