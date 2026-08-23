@@ -84,15 +84,30 @@ then confirm the live sealed-secrets/cnpg installs match the new apps (bitnami c
 
 ## 6. Next action
 
-The cluster + app stack are live. Working the end-of-session audit, in order:
+The cluster + app stack are live. The entire **no-keys audit backlog is now built + validated**
+(pushed to `main`, both this repo + `andusystems-spriteforge`):
 
-1. **Reproducibility trio — DONE in-repo (§1), needs commit+push + a `deploy.yml` run + the one-time
-   cutover.** After that, verify a real redeploy comes back healthy.
-2. **Restore drill** — kill `games-db`, restore from S3, confirm a known save round-trips (model on
-   `andusystems-platform/scripts/dr-drill.sh`). Proves the S3 backups are recoverable.
-3. **Quick wins** — register `idlebartender` in `apps/save-api/games-registry.yaml` + `products.yaml`;
-   SpriteForge S3 asset store (replace `store.Noop`).
-4. **Monitoring** — swap the `REPLACE_ME-mimir` remote_write URL in `apps/monitoring/resources.yaml`
-   for the real mgmt LGTM push URL + RBAC.
-5. **Edge routes** — UAT DNS + websecure routes + Pangolin resources for `uat-api` / `uat.*.games…`.
-6. **Key-gated slices** — fal.ai (SpriteForge gen), Stripe (payments), Apple/Google (store submission).
+- ✅ Reproducibility trio (operators-as-apps, sealed-secrets key persistence, Kyverno baseline).
+- ✅ Restore drill (`scripts/dr-drill.sh`) + real restore template + `Makefile` DR targets.
+- ✅ `idlebartender` registered; monitoring remote_write wired to mgmt Prometheus; UAT edge TLS routes.
+- ✅ `new-game.sh` fixed + `/new-game` skill; SpriteForge real S3 asset store (`go build` clean).
+
+**Activate (operator):** run `deploy.yml` (create-or-keep) to (a) create the new ArgoCD apps and
+(b) persist the sealed-secrets key; do the one-time cutover (§1); then verify a real redeploy.
+
+**Remaining — key/account-gated (send keys → I build the slice):**
+- **fal.ai** `FAL_KEY` → real SpriteForge generation (S3 store already persists whatever it returns).
+- **Stripe** account + keys → payments schema + checkout + entitlements + webhook (Phase 7).
+- **Apple Developer + Google Play** → store submission; **macOS build path** (CONFIRM) for iOS (Phase 6).
+- **Pangolin resources** (manual UI) for `uat-api` / `uat.*` / `spriteforge` → capture Newt creds as sealed secrets.
+- **Cloudflare** prod web DNS/records per game + (optional) Tunnel for the public save-api.
+
+**Bigger builds (no keys, larger):** SpriteForge Rig&Animate + Export-to-S3 backends; mobile Fastlane
+pipeline; the real idlebartender game (tic-tac-toe placeholder today); Phase 9 end-to-end sign-off.
+
+### Known gaps flagged this session
+- `games-db`/`games-db-uat` have **no `bootstrap.recovery`** → a plain rebuild returns EMPTY DBs;
+  real restore uses `scripts/cnpg-recovery.template.yaml` (bump serverName generation). Decide whether
+  `redeploy.yml` should auto-recover (needs a live test — first-deploy chicken-and-egg). See `docs/runbook.md`.
+- Operators were hand-installed on the **live** cluster; ArgoCD must **adopt** (not duplicate) them —
+  back up the sealed-secrets key first, confirm chart/namespace match (§1).
