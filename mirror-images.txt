@@ -13,6 +13,9 @@ golang:1.24-alpine
 node:22-bookworm-slim
 gcr.io/distroless/static:nonroot
 
+# --- CI builder (kaniko, sourced from Forgejo by the app image.yml workflows) ---
+gcr.io/kaniko-project/executor:v1.23.2-debug
+
 # --- app runtime images ---
 fosrl/newt:latest
 grafana/agent:v0.44.2

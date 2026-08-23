@@ -54,6 +54,11 @@ jobs:
             # dest = mirror/<source path minus a leading "host.tld/">
             path="$(echo "$src" | sed -E 's#^[^/]+\.[^/]+/##')"
             dest="$REG/andusystems/mirror/$path"
+            # Skip if already mirrored — keeps re-runs idempotent and avoids re-pulling from public
+            # registries (docker.io anonymous rate limits). Delete the dest tag to force a refresh.
+            if crane manifest --insecure "$dest" >/dev/null 2>&1; then
+              echo "==> $src  (already mirrored, skip)"; continue
+            fi
             echo "==> $src  ->  $dest"
             crane copy --insecure "$src" "$dest" || { echo "::warning::failed $src"; fail=1; }
           done < mirror-images.txt
