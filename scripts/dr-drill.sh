@@ -36,16 +36,18 @@ K create secret generic cnpg-backup-creds \
   --from-literal=SECRET_ACCESS_KEY="$AWS_SECRET_ACCESS_KEY" \
   --dry-run=client -o yaml | K apply -f -
 
-# barmanObjectStore block reused for backup + externalCluster (same serverName = recover-and-continue).
+# barmanObjectStore fields reused for backup + externalCluster (same serverName = recover-and-continue).
+# $1 = leading indent so it nests correctly under backup.barmanObjectStore (6) vs externalClusters (8).
 store_block() {
+  local i="$1"
   cat <<EOF
-      serverName: ${SRV}
-      destinationPath: ${DEST}
-      s3Credentials:
-        accessKeyId:     { name: cnpg-backup-creds, key: ACCESS_KEY_ID }
-        secretAccessKey: { name: cnpg-backup-creds, key: SECRET_ACCESS_KEY }
-      wal:  { compression: gzip }
-      data: { compression: gzip }
+${i}serverName: ${SRV}
+${i}destinationPath: ${DEST}
+${i}s3Credentials:
+${i}  accessKeyId:     { name: cnpg-backup-creds, key: ACCESS_KEY_ID }
+${i}  secretAccessKey: { name: cnpg-backup-creds, key: SECRET_ACCESS_KEY }
+${i}wal:  { compression: gzip }
+${i}data: { compression: gzip }
 EOF
 }
 
@@ -60,7 +62,7 @@ spec:
   env: [ { name: AWS_REGION, value: "us-east-1" } ]
   backup:
     barmanObjectStore:
-$(store_block)
+$(store_block "      ")
 EOF
 }
 
@@ -75,13 +77,13 @@ spec:
   env: [ { name: AWS_REGION, value: "us-east-1" } ]
   backup:
     barmanObjectStore:
-$(store_block)
+$(store_block "      ")
   bootstrap:
     recovery: { source: origin }
   externalClusters:
     - name: origin
       barmanObjectStore:
-$(store_block)
+$(store_block "        ")
 EOF
 }
 
