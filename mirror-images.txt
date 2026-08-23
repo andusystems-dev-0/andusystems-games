@@ -6,8 +6,10 @@
 # apps/argocd/applications.yaml + ansible/k3s.yml — re-run `helm template` / `k3s ... --images` if bumped.
 
 # --- Dockerfile bases (save-api + spriteforge) ---
-golang:1.25
-golang:1.24-bookworm
+# Alpine Go bases: far smaller layers than -bookworm (which 502s on upload through the mgmt Traefik),
+# and fine for these CGO_ENABLED=0 static builds -> distroless runtime. save-api needs 1.25, spriteforge 1.24.
+golang:1.25-alpine
+golang:1.24-alpine
 node:22-bookworm-slim
 gcr.io/distroless/static:nonroot
 
