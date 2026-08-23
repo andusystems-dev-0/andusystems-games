@@ -1,0 +1,52 @@
+# CNPG restore-from-S3 template — recover a games database into a FRESH cluster from its barman
+# backups in s3://andusystems-dr/cnpg/<db>. This is the real "restore" path (the redeploy contract);
+# scripts/dr-drill.sh proves the same mechanics on a throwaway canary.
+#
+# IMPORTANT: apps/cnpg/resources.yaml creates games-db / games-db-uat as EMPTY clusters (no
+# bootstrap.recovery) — so a plain destroy+recreate comes back with NO DATA. To actually restore,
+# during a rebuild bump the live serverName generation (g1 -> g2) AND recover from the PREVIOUS
+# generation, using this template. CNPG's bootstrap.recovery only runs on first creation (empty PVC),
+# so it's a one-shot: apply this INSTEAD OF the normal Cluster for the rebuild, then future backups
+# stream to the new generation.
+#
+# Usage (KUBECONFIG at the games cluster; cnpg-backup-creds Secret present in the target namespace):
+#   sed -e 's/__DB__/games-db/' -e 's/__NS__/save-api/' \
+#       -e 's/__NEW_GEN__/games-db-g2/' -e 's/__FROM_GEN__/games-db-g1/' \
+#       scripts/cnpg-recovery.template.yaml | kubectl apply -f -
+# (UAT: __DB__=games-db-uat __NS__=save-api-uat __FROM_GEN__=games-db-uat-g1 __NEW_GEN__=games-db-uat-g2)
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: __DB__
+  namespace: __NS__
+  annotations: { cnpg.io/skipEmptyWalArchiveCheck: "true" }
+spec:
+  instances: 3
+  storage:
+    size: 10Gi
+  env:
+    - { name: AWS_REGION, value: "us-east-1" }
+  # New backups after recovery go to a FRESH generation so they never collide with the source.
+  backup:
+    retentionPolicy: "30d"
+    barmanObjectStore:
+      destinationPath: s3://andusystems-dr/cnpg/__DB__
+      serverName: __NEW_GEN__
+      s3Credentials:
+        accessKeyId:     { name: cnpg-backup-creds, key: ACCESS_KEY_ID }
+        secretAccessKey: { name: cnpg-backup-creds, key: SECRET_ACCESS_KEY }
+      wal:  { compression: gzip, encryption: AES256 }
+      data: { compression: gzip, encryption: AES256 }
+  # Bootstrap by replaying the PREVIOUS generation's base backup + WAL from S3.
+  bootstrap:
+    recovery: { source: origin }
+  externalClusters:
+    - name: origin
+      barmanObjectStore:
+        destinationPath: s3://andusystems-dr/cnpg/__DB__
+        serverName: __FROM_GEN__
+        s3Credentials:
+          accessKeyId:     { name: cnpg-backup-creds, key: ACCESS_KEY_ID }
+          secretAccessKey: { name: cnpg-backup-creds, key: SECRET_ACCESS_KEY }
+        wal:  { compression: gzip, encryption: AES256 }
+        data: { compression: gzip, encryption: AES256 }

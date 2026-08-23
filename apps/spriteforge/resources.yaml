@@ -56,8 +56,11 @@ spec:
           env:
             - { name: ADDR, value: ":8090" }
             - { name: ENV, value: "prod" }
+            - { name: AWS_REGION, value: "us-east-1" }   # asset store = AWS S3 (endpoint empty); region for the S3 client
             - { name: DATABASE_URL, valueFrom: { secretKeyRef: { name: forge-db-app, key: uri } } }
-          # FAL_KEY + R2_* land here once provided; optional so the service boots on the noop provider first.
+          # FAL_KEY + R2_ACCESS_KEY_ID/R2_SECRET_ACCESS_KEY (+ optional R2_ENDPOINT for R2, R2_BUCKET) land
+          # here once provided. Optional so the service boots on the noop provider + noop store first; the
+          # backend upgrades to the real S3 asset store automatically when the creds appear.
           envFrom:
             - secretRef: { name: spriteforge-secrets, optional: true }
           readinessProbe: { httpGet: { path: /readyz, port: 8090 } }

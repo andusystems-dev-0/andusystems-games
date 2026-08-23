@@ -42,9 +42,12 @@ kind: IngressRoute
 metadata:
   name: web-uat
 spec:
-  entryPoints: [web]
+  # Reached via the Pangolin `uat.*.games…` wildcard resource, which TCP-passes :443 to this cluster's
+  # Traefik — so terminate TLS on websecure with the default games-edge-tls wildcard cert (tls: {}).
+  entryPoints: [web, websecure]
   routes:
     - match: HostRegexp(`uat.{slug:[a-z0-9-]+}.games.andusystems.com`)
       kind: Rule
       services:
         - { name: web-uat, port: 80 }
+  tls: {}

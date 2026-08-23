@@ -19,11 +19,20 @@ patches:
       - op: replace
         path: /spec/template/spec/containers/0/env/4/valueFrom/secretKeyRef/name
         value: save-api-jwt-uat
+  # UAT is reached via Pangolin, which TCP-passes :443 to this cluster's Traefik — so the UAT API
+  # must terminate TLS on websecure (default games-edge-tls wildcard cert), unlike prod (which is
+  # plain in-cluster http behind the Cloudflare Tunnel). Same shape as apps/spriteforge.
   - target: { kind: IngressRoute, name: save-api }
     patch: |
       - op: replace
         path: /spec/routes/0/match
         value: Host(`uat-api.games.andusystems.com`)
+      - op: replace
+        path: /spec/entryPoints
+        value: [web, websecure]
+      - op: add
+        path: /spec/tls
+        value: {}
   # Drop the prod JWT SealedSecret pulled in from the base — it's sealed for the save-api namespace.
   - target: { kind: SealedSecret, name: save-api-jwt-prod }
     patch: |

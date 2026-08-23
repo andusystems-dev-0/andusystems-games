@@ -1,13 +1,14 @@
 # Runbook — operations
 
 Run from the devbox (`/home/admin/andusystems/andusystems-games`, sources `.env.local`). Mirrors
-the pterodactyl/platform operational model. Everything below is the *intended* interface — build the
-Makefile/scripts in ROADMAP Phase 0–1.
+the pterodactyl/platform operational model. The `Makefile` wires these targets (`make help`);
+provisioning targets trigger the GHA pipeline on self-hosted runners (not local applies), DR targets
+act on the live cluster (`KUBECONFIG` = games + `AWS_*` in env).
 
 ## Cluster lifecycle
 | Command | What |
 |---|---|
-| `make cluster` | Terraform VMs (games VLAN) + Ansible k3s. Safe, converge-only. |
+| `make cluster` | Triggers `deploy.yml` (self-hosted runner): Terraform VMs (games VLAN) + Ansible k3s + register ArgoCD spoke. Safe, converge-only. |
 | `make register-spoke` | Register the cluster with the mgmt ArgoCD hub; apply the `games` AppProject + app-of-apps. |
 | `make bootstrap-secrets` | Seal + seed the bootstrap secrets (see list below). |
 | `make redeploy` (`CONFIRM=DESTROY`) | Destroy + recreate the cluster and **restore CNPG from S3**. Durability is off-cluster (S3), not disk. Runs `.github/workflows/redeploy.yml`. |
@@ -41,9 +42,25 @@ A fresh cluster must come back with the same identity and decryptable secrets, f
 ## Data / backups
 | Command | What |
 |---|---|
-| `make backup` | On-demand CNPG base backup → S3 (`s3://andusystems-dr/cnpg/*`). Nightly is a scheduled CNPG backup. |
-| `make restore` | Restore the latest S3 backup onto `games-db` / `games-db-uat`. |
-| DR drill (monthly) | Kill a DB, restore from S3, verify a known save round-trips. Backup **age** is alerted in Grafana. |
+| `make backup` | On-demand CNPG base backup of all three DBs → S3 (`s3://andusystems-dr/cnpg/*`). Nightly is a scheduled CNPG backup. |
+| `make restore` | Prints the restore-from-S3 procedure (see below). |
+| `make dr-drill` | **Safe** canary: stand up a throwaway CNPG, back up, recover, verify row counts (`scripts/dr-drill.sh`). Run monthly. |
+
+### Restore from S3 (the real recovery path)
+> ⚠️ **Gap to close:** `apps/cnpg/resources.yaml` creates `games-db` / `games-db-uat` as **empty**
+> clusters (no `bootstrap.recovery`), so a plain destroy+recreate comes back with **no data**. A true
+> restore is a one-shot recovery into a fresh cluster: bump the `serverName` generation and recover
+> from the previous one via `scripts/cnpg-recovery.template.yaml`, e.g. `games-db` (g1 → g2):
+>
+> ```sh
+> sed -e 's/__DB__/games-db/' -e 's/__NS__/save-api/' \
+>     -e 's/__FROM_GEN__/games-db-g1/' -e 's/__NEW_GEN__/games-db-g2/' \
+>     scripts/cnpg-recovery.template.yaml | kubectl apply -f -
+> ```
+>
+> `make dr-drill` proves these exact mechanics without touching prod. Backup **age** is alerted in
+> mgmt Grafana. (Follow-up: decide whether `redeploy.yml` should auto-apply the recovery template so a
+> rebuild restores data automatically — needs a live test to avoid a first-deploy chicken-and-egg.)
 
 ## Access recap
 - **Public/prod:** Cloudflare — `<slug>.games…` (R2/Pages), `api.games…` (Tunnel). No open ports.

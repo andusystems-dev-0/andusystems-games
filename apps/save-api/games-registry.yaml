@@ -7,3 +7,11 @@ games:
     max_slots: 1
     max_blob_bytes: 262144
     conflict: last_write_wins
+  # idlebartender (com.andusystems.games.idlebartender): a single small save blob (wins/losses/draws
+  # today; ~50 bytes) — plain last-write-wins, one slot, no history. gameId matches game.json + VITE_GAME_ID.
+  - slug: idlebartender
+    save_mode: lww
+    history_depth: 0
+    max_slots: 1
+    max_blob_bytes: 262144
+    conflict: last_write_wins
