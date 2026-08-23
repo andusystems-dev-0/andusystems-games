@@ -5,78 +5,94 @@ apiVersion: postgresql.cnpg.io/v1
 kind: Cluster
 metadata:
   name: forge-db
-  annotations: { cnpg.io/skipEmptyWalArchiveCheck: "true" }
+  annotations: {cnpg.io/skipEmptyWalArchiveCheck: "true"}
 spec:
   instances: 2
-  storage: { size: 5Gi }
+  storage: {size: 5Gi}
   env:
-    - { name: AWS_REGION, value: "us-east-1" }
+    - {name: AWS_REGION, value: "us-east-1"}
   bootstrap:
-    initdb:
-      database: forge
-      owner: forge
-      secret: { name: forge-db-owner }
+    recovery:
+      source: fromS3
   backup:
     retentionPolicy: "14d"
     barmanObjectStore:
       destinationPath: s3://andusystems-dr/cnpg/forge-db
-      serverName: forge-db-g1
+      serverName: forge-db-g2
       s3Credentials:
-        accessKeyId:     { name: cnpg-backup-creds, key: ACCESS_KEY_ID }
-        secretAccessKey: { name: cnpg-backup-creds, key: SECRET_ACCESS_KEY }
-      wal:  { compression: gzip, encryption: AES256 }
-      data: { compression: gzip, encryption: AES256 }
+        accessKeyId: {name: cnpg-backup-creds, key: ACCESS_KEY_ID}
+        secretAccessKey: {name: cnpg-backup-creds, key: SECRET_ACCESS_KEY}
+      wal: {compression: gzip, encryption: AES256}
+      data: {compression: gzip, encryption: AES256}
+  externalClusters:
+    - name: fromS3
+      barmanObjectStore:
+        destinationPath: s3://andusystems-dr/cnpg/forge-db
+        serverName: forge-db-g1
+        s3Credentials:
+          accessKeyId:
+            name: cnpg-backup-creds
+            key: ACCESS_KEY_ID
+          secretAccessKey:
+            name: cnpg-backup-creds
+            key: SECRET_ACCESS_KEY
+        wal:
+          compression: gzip
+          encryption: AES256
+        data:
+          compression: gzip
+          encryption: AES256
 ---
 apiVersion: postgresql.cnpg.io/v1
 kind: ScheduledBackup
-metadata: { name: forge-db-nightly, namespace: spriteforge }
+metadata: {name: forge-db-nightly, namespace: spriteforge}
 spec:
   schedule: "0 45 3 * * *"
   backupOwnerReference: self
-  cluster: { name: forge-db }
+  cluster: {name: forge-db}
 ---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: spriteforge
-  labels: { app: spriteforge }
+  labels: {app: spriteforge}
 spec:
   replicas: 1
-  selector: { matchLabels: { app: spriteforge } }
+  selector: {matchLabels: {app: spriteforge}}
   template:
-    metadata: { labels: { app: spriteforge } }
+    metadata: {labels: {app: spriteforge}}
     spec:
-      securityContext: { runAsNonRoot: true, runAsUser: 65532, seccompProfile: { type: RuntimeDefault } }
+      securityContext: {runAsNonRoot: true, runAsUser: 65532, seccompProfile: {type: RuntimeDefault}}
       imagePullSecrets:
-        - { name: forgejo-registry }
+        - {name: forgejo-registry}
       containers:
         - name: backend
           image: forgejo.andusystems.com/andusystems/spriteforge:latest
-          ports: [ { containerPort: 8090 } ]
+          ports: [{containerPort: 8090}]
           env:
-            - { name: ADDR, value: ":8090" }
-            - { name: ENV, value: "prod" }
-            - { name: AWS_REGION, value: "us-east-1" }   # asset store = AWS S3 (endpoint empty); region for the S3 client
-            - { name: DATABASE_URL, valueFrom: { secretKeyRef: { name: forge-db-app, key: uri } } }
+            - {name: ADDR, value: ":8090"}
+            - {name: ENV, value: "prod"}
+            - {name: AWS_REGION, value: "us-east-1"} # asset store = AWS S3 (endpoint empty); region for the S3 client
+            - {name: DATABASE_URL, valueFrom: {secretKeyRef: {name: forge-db-app, key: uri}}}
           # FAL_KEY + R2_ACCESS_KEY_ID/R2_SECRET_ACCESS_KEY (+ optional R2_ENDPOINT for R2, R2_BUCKET) land
           # here once provided. Optional so the service boots on the noop provider + noop store first; the
           # backend upgrades to the real S3 asset store automatically when the creds appear.
           envFrom:
-            - secretRef: { name: spriteforge-secrets, optional: true }
-          readinessProbe: { httpGet: { path: /readyz, port: 8090 } }
-          livenessProbe: { httpGet: { path: /healthz, port: 8090 } }
+            - secretRef: {name: spriteforge-secrets, optional: true}
+          readinessProbe: {httpGet: {path: /readyz, port: 8090}}
+          livenessProbe: {httpGet: {path: /healthz, port: 8090}}
           securityContext:
             allowPrivilegeEscalation: false
             readOnlyRootFilesystem: true
-            capabilities: { drop: ["ALL"] }
+            capabilities: {drop: ["ALL"]}
 ---
 apiVersion: v1
 kind: Service
 metadata:
   name: spriteforge
 spec:
-  selector: { app: spriteforge }
-  ports: [ { port: 80, targetPort: 8090 } ]
+  selector: {app: spriteforge}
+  ports: [{port: 80, targetPort: 8090}]
 ---
 apiVersion: traefik.io/v1alpha1
 kind: IngressRoute
@@ -87,8 +103,8 @@ spec:
   # tls: {} serves the default TLSStore cert (games-edge-tls, Let's Encrypt) on websecure.
   entryPoints: [web, websecure]
   routes:
-    - match: Host(`spriteforge.andusystems.com`)   # reached only via the Pangolin private resource
+    - match: Host(`spriteforge.andusystems.com`) # reached only via the Pangolin private resource
       kind: Rule
       services:
-        - { name: spriteforge, port: 80 }
+        - {name: spriteforge, port: 80}
   tls: {}
