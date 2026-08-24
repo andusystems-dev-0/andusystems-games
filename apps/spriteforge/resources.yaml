@@ -68,7 +68,10 @@ spec:
         - {name: forgejo-registry}
       containers:
         - name: backend
-          image: forgejo.andusystems.com/andusystems/spriteforge:latest
+          # Pinned to the immutable build SHA so ArgoCD detects the change and rolls it (a re-pushed
+          # :latest is the same tag → no rollout). Bump this to the new SHA on each spriteforge release.
+          # 11dfdda = fal endpoint fix (flux-schnell 404 → fal-ai/flux/schnell) + SAM2 response shape.
+          image: forgejo.andusystems.com/andusystems/spriteforge:11dfdda100094cd646738efda58fe938c9a998ff
           ports: [{containerPort: 8090}]
           env:
             - {name: ADDR, value: ":8090"}
