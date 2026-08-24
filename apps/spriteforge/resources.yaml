@@ -70,9 +70,9 @@ spec:
         - name: backend
           # Pinned to the immutable build SHA so ArgoCD detects the change and rolls it (a re-pushed
           # :latest is the same tag → no rollout). Bump this to the new SHA on each spriteforge release.
-          # ea94b41 = library shows asset images + per-asset remove-background (needs the S3 store env below).
-          # (d48060c = Remove Background page; 9b4b55d = bg-removal toggle; 11dfdda = fal flux fix + SAM2.)
-          image: forgejo.andusystems.com/andusystems/spriteforge:ea94b418b1e7dab602d70408b71c79c873d2e009
+          # a209b07 = serve assets by streaming + fal data URIs (SDK presign 403'd). Library view + per-asset
+          # remove-bg now work. (ea94b41 = library view/remove-bg; d48060c = Remove BG page; 11dfdda = fal fix.)
+          image: forgejo.andusystems.com/andusystems/spriteforge:a209b07d121632763f48141e7f2143d9c505d0dc
           ports: [{containerPort: 8090}]
           env:
             - {name: ADDR, value: ":8090"}
