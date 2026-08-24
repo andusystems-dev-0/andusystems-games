@@ -70,18 +70,24 @@ spec:
         - name: backend
           # Pinned to the immutable build SHA so ArgoCD detects the change and rolls it (a re-pushed
           # :latest is the same tag → no rollout). Bump this to the new SHA on each spriteforge release.
-          # d48060c = Remove Background page for existing images (upload/URL → transparent PNG).
-          # (9b4b55d = bg-removal toggle at generate; 11dfdda = fal flux endpoint fix + SAM2 shape.)
-          image: forgejo.andusystems.com/andusystems/spriteforge:d48060c0079add7964122927513c2ab10e3c229c
+          # ea94b41 = library shows asset images + per-asset remove-background (needs the S3 store env below).
+          # (d48060c = Remove Background page; 9b4b55d = bg-removal toggle; 11dfdda = fal flux fix + SAM2.)
+          image: forgejo.andusystems.com/andusystems/spriteforge:ea94b418b1e7dab602d70408b71c79c873d2e009
           ports: [{containerPort: 8090}]
           env:
             - {name: ADDR, value: ":8090"}
             - {name: ENV, value: "prod"}
             - {name: AWS_REGION, value: "us-east-1"} # asset store = AWS S3 (endpoint empty); region for the S3 client
             - {name: DATABASE_URL, valueFrom: {secretKeyRef: {name: forge-db-app, key: uri}}}
-          # FAL_KEY + R2_ACCESS_KEY_ID/R2_SECRET_ACCESS_KEY (+ optional R2_ENDPOINT for R2, R2_BUCKET) land
-          # here once provided. Optional so the service boots on the noop provider + noop store first; the
-          # backend upgrades to the real S3 asset store automatically when the creds appear.
+            # Asset store = AWS S3 (bucket andusystems-spriteforge, private, served via presigned URLs).
+            # Reuse the platform/games AWS keys already in this namespace as cnpg-backup-creds (the same
+            # creds forge-db uses for its S3 backups) — no separate sealed secret needed. R2_ENDPOINT is
+            # left unset so the S3 client talks to real AWS (endpoint empty => AWS, not R2/MinIO).
+            - {name: R2_BUCKET, value: "andusystems-spriteforge"}
+            - {name: R2_ACCESS_KEY_ID, valueFrom: {secretKeyRef: {name: cnpg-backup-creds, key: ACCESS_KEY_ID}}}
+            - {name: R2_SECRET_ACCESS_KEY, valueFrom: {secretKeyRef: {name: cnpg-backup-creds, key: SECRET_ACCESS_KEY}}}
+          # FAL_KEY lands here (sealed). Optional so the service still boots if it's absent; the backend
+          # upgrades from noop to the real fal provider automatically when the key appears.
           envFrom:
             - secretRef: {name: spriteforge-secrets, optional: true}
           readinessProbe: {httpGet: {path: /readyz, port: 8090}}
