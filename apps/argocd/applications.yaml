@@ -155,12 +155,14 @@ spec:
     directory: { recurse: false, include: '{baseline,registry}.yml' }
   destination: { name: games, namespace: kyverno }
   ignoreDifferences:
+    # Kyverno populates these server-side on admit (verified: admission/background/emitWarning/status);
+    # validationFailureAction is NOT rewritten (it stays as git sets it), so it is GitOps-managed — a
+    # committed Audit->Enforce flip must actually reconcile, so it is deliberately NOT ignored here.
     - group: kyverno.io
       kind: ClusterPolicy
       jsonPointers:
         - /spec/admission
         - /spec/background
-        - /spec/validationFailureAction
         - /spec/emitWarning
         - /status
   syncPolicy:
