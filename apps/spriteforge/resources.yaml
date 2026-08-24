@@ -70,9 +70,9 @@ spec:
         - name: backend
           # Pinned to the immutable build SHA so ArgoCD detects the change and rolls it (a re-pushed
           # :latest is the same tag → no rollout). Bump this to the new SHA on each spriteforge release.
-          # 9b4b55d = background removal for item sprites (fal BiRefNet v2) + removeBackground toggle.
-          # (prev 11dfdda = fal endpoint fix flux-schnell 404 → fal-ai/flux/schnell + SAM2 response shape.)
-          image: forgejo.andusystems.com/andusystems/spriteforge:9b4b55d603fa8b2ee225754b6cd3a27d67ebfc37
+          # d48060c = Remove Background page for existing images (upload/URL → transparent PNG).
+          # (9b4b55d = bg-removal toggle at generate; 11dfdda = fal flux endpoint fix + SAM2 shape.)
+          image: forgejo.andusystems.com/andusystems/spriteforge:d48060c0079add7964122927513c2ab10e3c229c
           ports: [{containerPort: 8090}]
           env:
             - {name: ADDR, value: ":8090"}
