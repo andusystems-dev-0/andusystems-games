@@ -22,7 +22,7 @@ spec:
       containers:
         - name: web
           # Pinned to the build SHA so ArgoCD rolls new builds (bump on each release, like spriteforge).
-          image: forgejo.andusystems.com/andusystems/game-idlebartender:035282684658517c8aa04836dc22db3b1554e71b
+          image: forgejo.andusystems.com/andusystems/game-idlebartender:47fd03ece89cb6afe6bb916f8d63e64e28890130
           ports: [{ containerPort: 8080 }]
           securityContext:
             allowPrivilegeEscalation: false
