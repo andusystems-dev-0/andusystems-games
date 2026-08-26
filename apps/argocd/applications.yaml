@@ -237,6 +237,21 @@ spec:
     automated: { prune: true, selfHeal: true }
     syncOptions: ["CreateNamespace=true"]
 ---
+# idlebartender game — public web bundle served from this cluster (nginx + baked Phaser build), with
+# Cloudflare in front as DNS/CDN only. Manifests in apps/game-idlebartender.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: games-idlebartender
+  namespace: argocd
+spec:
+  project: games
+  source: { repoURL: https://github.com/andusystems-dev-0/andusystems-games, targetRevision: main, path: apps/game-idlebartender }
+  destination: { name: games, namespace: games-web }
+  syncPolicy:
+    automated: { prune: true, selfHeal: true }
+    syncOptions: ["CreateNamespace=true"]
+---
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
