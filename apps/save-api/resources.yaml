@@ -57,16 +57,21 @@ spec:
   ports:
     - { port: 80, targetPort: 8080 }
 ---
-# Prod API is published publicly via the Cloudflare Tunnel → this Service. IngressRoute is the
-# in-cluster route the tunnel targets.
+# Prod API is published publicly the SAME way as the games' web (idlebartender): a Pangolin resource
+# TCP-passes :443 to this cluster's Traefik, which terminates TLS here with the default games-edge-tls
+# store cert (the wildcard *.games.andusystems.com already covers api.games.andusystems.com) and routes
+# by Host. Cloudflare is DNS-only in front. `web` is kept for in-cluster/plain-HTTP callers.
+# NOTE: still requires (out-of-git) a Pangolin resource api.games.andusystems.com → 10.238.70.50:443
+# and a DNS record for api.games.andusystems.com → the Pangolin edge. See docs/environments.md.
 apiVersion: traefik.io/v1alpha1
 kind: IngressRoute
 metadata:
   name: save-api
 spec:
-  entryPoints: [web]
+  entryPoints: [web, websecure]
   routes:
     - match: Host(`api.games.andusystems.com`)
       kind: Rule
       services:
         - { name: save-api, port: 80 }
+  tls: {}
