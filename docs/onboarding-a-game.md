@@ -3,6 +3,11 @@
 Adding game #N must never touch the cluster. It's a template clone, a registry PR, and a CDN/store
 publish. Target: one command (`scripts/new-game.sh <slug>`) + one PR.
 
+> **Client build, iOS web-app full-bleed, and cloud saves:** see **`game-frontend.md`** — the
+> hardened playbook from idlebartender (it also documents that the first game ships as an in-cluster
+> nginx image via GH Actions → Forgejo → ArgoCD, exposed through Pangolin + Cloudflare DNS, rather
+> than the Pages/R2 path sketched in step 5 below).
+
 ## Prerequisites (once)
 Cluster + edge + save-api live (ROADMAP 0–2); template + SDK ready (3–4); payments + mobile ready
 if the game sells or ships to stores (6–7).
